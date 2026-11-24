@@ -64,6 +64,15 @@ describe("i18n dictionaries & live EN/TR toggle", () => {
         );
       }
       if (url.includes("/config")) {
+        let patchedLocale = "en";
+        if (init?.method === "PATCH" && init.body) {
+          try {
+            const parsed = JSON.parse(String(init.body)) as { ui_locale?: string };
+            if (parsed.ui_locale) patchedLocale = parsed.ui_locale;
+          } catch {
+            // fallback
+          }
+        }
         return Promise.resolve(
           new Response(
             JSON.stringify({
@@ -75,7 +84,7 @@ describe("i18n dictionaries & live EN/TR toggle", () => {
               embedding_base_url: null,
               embedding_dim: 768,
               api_key_configured: false,
-              ui_locale: init?.method === "PATCH" ? "tr" : "en",
+              ui_locale: patchedLocale,
               data_dir: "data",
             }),
             { status: 200, headers: { "Content-Type": "application/json" } }
@@ -127,6 +136,18 @@ describe("i18n dictionaries & live EN/TR toggle", () => {
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Scale & Method Matrix" })).toBeInTheDocument();
     });
+
+    // Default theme is dark; switching to light and back updates document.documentElement.classList
+    expect(useWorkspaceStore.getState().theme).toBe("dark");
+    expect(document.documentElement.classList.contains("dark")).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Switch to Light Mode" }));
+    expect(useWorkspaceStore.getState().theme).toBe("light");
+    expect(document.documentElement.classList.contains("dark")).toBe(false);
+
+    fireEvent.click(screen.getByRole("button", { name: "Switch to Dark Mode" }));
+    expect(useWorkspaceStore.getState().theme).toBe("dark");
+    expect(document.documentElement.classList.contains("dark")).toBe(true);
 
     fetchSpy.mockRestore();
   });

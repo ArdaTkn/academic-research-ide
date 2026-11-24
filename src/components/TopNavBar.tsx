@@ -6,10 +6,12 @@ import {
   FileText,
   GitFork,
   Languages,
+  Moon,
   PanelLeftClose,
   PanelLeftOpen,
   RefreshCw,
   Settings,
+  Sun,
   Table2,
 } from "lucide-react";
 import { useEffect } from "react";
@@ -29,6 +31,8 @@ export function TopNavBar() {
   const queryClient = useQueryClient();
   const activeTab = useWorkspaceStore((s) => s.activeTab);
   const setActiveTab = useWorkspaceStore((s) => s.setActiveTab);
+  const theme = useWorkspaceStore((s) => s.theme);
+  const toggleTheme = useWorkspaceStore((s) => s.toggleTheme);
   const isSidebarCollapsed = useWorkspaceStore((s) => s.isSidebarCollapsed);
   const setSidebarCollapsed = useWorkspaceStore((s) => s.setSidebarCollapsed);
   const setSettingsOpen = useWorkspaceStore((s) => s.setSettingsOpen);
@@ -184,6 +188,16 @@ export function TopNavBar() {
             );
           })}
         </div>
+
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+          title={theme === "dark" ? t("theme.switchToLight") : t("theme.switchToDark")}
+          aria-label={theme === "dark" ? t("theme.switchToLight") : t("theme.switchToDark")}
+        >
+          {theme === "dark" ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4" />}
+        </button>
 
         <button
           type="button"

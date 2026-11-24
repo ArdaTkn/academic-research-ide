@@ -4,9 +4,11 @@ import type {
   RelationshipDirection,
   ScaleMatrixFilter,
   UiLocale,
+  UiTheme,
 } from "@/types/contracts";
 
 export const LOCALE_STORAGE_KEY = "academic_research_ide.locale";
+export const THEME_STORAGE_KEY = "academic_research_ide.theme";
 
 function getInitialLocale(): UiLocale {
   if (typeof window !== "undefined") {
@@ -18,6 +20,40 @@ function getInitialLocale(): UiLocale {
     }
   }
   return "en";
+}
+
+function getInitialTheme(): UiTheme {
+  if (typeof window !== "undefined") {
+    try {
+      const saved = window.localStorage?.getItem?.(THEME_STORAGE_KEY);
+      if (saved === "light" || saved === "dark") return saved;
+    } catch {
+      // Ignore storage access restrictions
+    }
+  }
+  return "dark";
+}
+
+function applyTheme(theme: UiTheme): void {
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage?.setItem?.(THEME_STORAGE_KEY, theme);
+    } catch {
+      // Ignore storage access restrictions
+    }
+    if (typeof document !== "undefined") {
+      document.documentElement.classList.toggle("dark", theme === "dark");
+      document.documentElement.dataset.theme = theme;
+      document.documentElement.style.colorScheme = theme;
+    }
+  }
+}
+
+const initialTheme = getInitialTheme();
+if (typeof document !== "undefined") {
+  document.documentElement.classList.toggle("dark", initialTheme === "dark");
+  document.documentElement.dataset.theme = initialTheme;
+  document.documentElement.style.colorScheme = initialTheme;
 }
 
 function persistLocale(locale: UiLocale): void {
@@ -73,6 +109,7 @@ export const DEFAULT_MATRIX_FILTERS: ScaleMatrixFilter = {
 
 interface WorkspaceState {
   locale: UiLocale;
+  theme: UiTheme;
   activeTab: WorkspaceTabId;
   selectedPaperId: string | null;
   selectedVariableId: string | null;
@@ -89,6 +126,8 @@ interface WorkspaceState {
   isSidebarCollapsed: boolean;
 
   setLocale: (locale: UiLocale) => void;
+  setTheme: (theme: UiTheme) => void;
+  toggleTheme: () => void;
   setActiveTab: (tab: WorkspaceTabId) => void;
   setSelectedPaperId: (paperId: string | null) => void;
   setSelectedVariableId: (variableId: string | null) => void;
@@ -113,6 +152,7 @@ interface WorkspaceState {
 
 export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   locale: getInitialLocale(),
+  theme: initialTheme,
   activeTab: "matrix",
   selectedPaperId: null,
   selectedVariableId: null,
@@ -132,6 +172,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
     persistLocale(locale);
     set({ locale });
   },
+  setTheme: (theme) => {
+    applyTheme(theme);
+    set({ theme });
+  },
+  toggleTheme: () =>
+    set((state) => {
+      const next: UiTheme = state.theme === "dark" ? "light" : "dark";
+      applyTheme(next);
+      return { theme: next };
+    }),
   setActiveTab: (activeTab) => set({ activeTab }),
   setSelectedPaperId: (selectedPaperId) => set({ selectedPaperId }),
   setSelectedVariableId: (selectedVariableId) => set({ selectedVariableId }),

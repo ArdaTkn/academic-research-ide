@@ -4,13 +4,15 @@ import { useEffect, useState, type FormEvent } from "react";
 import { apiClient, ApiClientError } from "@/api/client";
 import { useI18n } from "@/i18n";
 import { useWorkspaceStore } from "@/stores/useWorkspaceStore";
-import type { UiLocale } from "@/types/contracts";
+import type { UiLocale, UiTheme } from "@/types/contracts";
 
 export function SettingsModal() {
   const { t, setLocale } = useI18n();
   const isOpen = useWorkspaceStore((s) => s.isSettingsOpen);
   const setOpen = useWorkspaceStore((s) => s.setSettingsOpen);
   const currentLocale = useWorkspaceStore((s) => s.locale);
+  const theme = useWorkspaceStore((s) => s.theme);
+  const setTheme = useWorkspaceStore((s) => s.setTheme);
   const queryClient = useQueryClient();
 
   const configQuery = useQuery({
@@ -112,7 +114,7 @@ export function SettingsModal() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <label className="block text-xs font-medium text-slate-700">
                   {t("settings.uiLanguage")}
                   <select
@@ -122,6 +124,18 @@ export function SettingsModal() {
                   >
                     <option value="en">English (EN)</option>
                     <option value="tr">Türkçe (TR)</option>
+                  </select>
+                </label>
+
+                <label className="block text-xs font-medium text-slate-700">
+                  {t("theme.label")}
+                  <select
+                    value={theme}
+                    onChange={(e) => setTheme(e.target.value as UiTheme)}
+                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none"
+                  >
+                    <option value="dark">{t("theme.dark")}</option>
+                    <option value="light">{t("theme.light")}</option>
                   </select>
                 </label>
 

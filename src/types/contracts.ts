@@ -376,6 +376,7 @@ export interface HealthResponse {
 }
 
 export type UiLocale = "en" | "tr";
+export type UiTheme = "dark" | "light";
 
 export interface ConfigResponse {
   llm_provider: string;

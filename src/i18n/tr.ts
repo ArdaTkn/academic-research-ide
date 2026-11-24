@@ -317,4 +317,11 @@ export const tr: Record<TranslationKey, string> = {
   "startup.noLogs": "Arka uç sürecinden yakalanan stderr/stdout kaydı bulunmuyor.",
   "startup.retry": "Yeniden Dene ve Arka Ucu Başlat",
   "startup.retrying": "Arka uç yeniden başlatılıyor...",
+
+  // Theme
+  "theme.label": "Tema",
+  "theme.dark": "Karanlık (Varsayılan)",
+  "theme.light": "Aydınlık",
+  "theme.switchToLight": "Aydınlık Moda Geç",
+  "theme.switchToDark": "Karanlık Moda Geç",
 };

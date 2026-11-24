@@ -315,6 +315,13 @@ export const en = {
   "startup.noLogs": "No stderr/stdout logs captured from backend process.",
   "startup.retry": "Retry & Restart Backend",
   "startup.retrying": "Restarting backend...",
+
+  // Theme
+  "theme.label": "Theme",
+  "theme.dark": "Dark (Default)",
+  "theme.light": "Light",
+  "theme.switchToLight": "Switch to Light Mode",
+  "theme.switchToDark": "Switch to Dark Mode",
 } as const;
 
 export type TranslationKey = keyof typeof en;

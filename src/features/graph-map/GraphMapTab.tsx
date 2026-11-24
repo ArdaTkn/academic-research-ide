@@ -50,6 +50,8 @@ const EDGE_SIGN: Record<RelationshipDirection, string> = {
 
 export function GraphMapTab() {
   const { t, locale, formatNumber } = useI18n();
+  const theme = useWorkspaceStore((s) => s.theme);
+  const isDark = theme === "dark";
   const graphFilters = useWorkspaceStore((s) => s.graphFilters);
   const setGraphFilters = useWorkspaceStore((s) => s.setGraphFilters);
   const resetGraphFilters = useWorkspaceStore((s) => s.resetGraphFilters);
@@ -149,10 +151,10 @@ export function GraphMapTab() {
         labelStyle: {
           fontSize: 11,
           fontWeight: edge.has_contradiction ? 700 : 600,
-          fill: edge.has_contradiction ? "#92400e" : "#334155",
+          fill: edge.has_contradiction ? (isDark ? "#fcd34d" : "#92400e") : isDark ? "#e2e8f0" : "#334155",
         },
         labelBgStyle: {
-          fill: edge.has_contradiction ? "#fef3c7" : "#ffffff",
+          fill: edge.has_contradiction ? (isDark ? "#451a03" : "#fef3c7") : isDark ? "#111827" : "#ffffff",
           fillOpacity: 0.92,
         },
       };
@@ -180,8 +182,8 @@ export function GraphMapTab() {
           strokeDasharray: "6 5",
           opacity: isPairSelected ? 1 : 0.7,
         },
-        labelStyle: { fontSize: 10, fontWeight: 600, fill: "#0369a1" },
-        labelBgStyle: { fill: "#e0f2fe", fillOpacity: 0.92 },
+        labelStyle: { fontSize: 10, fontWeight: 600, fill: isDark ? "#7dd3fc" : "#0369a1" },
+        labelBgStyle: { fill: isDark ? "#0c4a6e" : "#e0f2fe", fillOpacity: 0.92 },
       };
     });
 
@@ -193,6 +195,7 @@ export function GraphMapTab() {
     graphFilters.showGaps,
     graphFilters.onlyContradictions,
     selectedGapPair,
+    isDark,
     t,
     formatNumber,
   ]);
@@ -398,6 +401,7 @@ export function GraphMapTab() {
                 nodes={flowNodes}
                 edges={flowEdges}
                 nodeTypes={NODE_TYPES}
+                className={isDark ? "dark" : undefined}
                 onNodeClick={handleNodeClick}
                 onEdgeClick={handleEdgeClick}
                 fitView
@@ -405,7 +409,7 @@ export function GraphMapTab() {
                 minZoom={0.2}
                 maxZoom={2}
               >
-                <Background color="#cbd5e1" gap={18} />
+                <Background color={isDark ? "#334155" : "#cbd5e1"} gap={18} />
                 <Controls />
                 <MiniMap
                   pannable

@@ -1,7 +1,8 @@
-import { AlertTriangle, BookOpenCheck, CheckCircle2, ChevronDown, ChevronUp, Loader2, RefreshCw, Terminal } from "lucide-react";
+import { AlertTriangle, BookOpenCheck, CheckCircle2, ChevronDown, ChevronUp, Loader2, Moon, RefreshCw, Sun, Terminal } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { apiClient, getBackendDiagnostics, restartBackend } from "@/api/client";
 import { useI18n } from "@/i18n";
+import { useWorkspaceStore } from "@/stores/useWorkspaceStore";
 import type { BackendDiagnostics } from "@/types/contracts";
 
 interface StartupReadinessGateProps {
@@ -16,6 +17,8 @@ export function StartupReadinessGate({
   timeoutMs = 45_000,
 }: StartupReadinessGateProps) {
   const { t, locale, setLocale } = useI18n();
+  const theme = useWorkspaceStore((s) => s.theme);
+  const toggleTheme = useWorkspaceStore((s) => s.toggleTheme);
   const [phase, setPhase] = useState<"checking" | "ready" | "error">("checking");
   const [errorKind, setErrorKind] = useState<"timeout" | "custom" | null>(null);
   const [customErrorMessage, setCustomErrorMessage] = useState<string | null>(null);
@@ -158,23 +161,35 @@ export function StartupReadinessGate({
             </div>
           </div>
 
-          <div
-            className="inline-flex shrink-0 items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-[11px] font-semibold"
-            role="group"
-            aria-label={t("settings.uiLanguage")}
-          >
-            {(["en", "tr"] as const).map((code) => (
-              <button
-                key={code}
-                type="button"
-                onClick={() => setLocale(code)}
-                className={`rounded-md px-2 py-0.5 uppercase transition ${
-                  locale === code ? "bg-white text-indigo-700 shadow-2xs" : "text-slate-500 hover:text-slate-900"
-                }`}
-              >
-                {code}
-              </button>
-            ))}
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+              title={theme === "dark" ? t("theme.switchToLight") : t("theme.switchToDark")}
+              aria-label={theme === "dark" ? t("theme.switchToLight") : t("theme.switchToDark")}
+            >
+              {theme === "dark" ? <Sun className="h-3.5 w-3.5 text-amber-400" /> : <Moon className="h-3.5 w-3.5" />}
+            </button>
+
+            <div
+              className="inline-flex shrink-0 items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-[11px] font-semibold"
+              role="group"
+              aria-label={t("settings.uiLanguage")}
+            >
+              {(["en", "tr"] as const).map((code) => (
+                <button
+                  key={code}
+                  type="button"
+                  onClick={() => setLocale(code)}
+                  className={`rounded-md px-2 py-0.5 uppercase transition ${
+                    locale === code ? "bg-white text-indigo-700 shadow-2xs" : "text-slate-500 hover:text-slate-900"
+                  }`}
+                >
+                  {code}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
