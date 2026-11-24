@@ -1,9 +1,21 @@
 import { useQuery } from "@tanstack/react-query";
 import { BookOpen, Loader2, X } from "lucide-react";
 import { apiClient, ApiClientError } from "@/api/client";
+import { useI18n, type TranslationKey } from "@/i18n";
 import { useWorkspaceStore } from "@/stores/useWorkspaceStore";
+import type { VariableRole } from "@/types/contracts";
+
+const ROLE_KEY: Record<VariableRole, TranslationKey> = {
+  independent: "paperDrawer.role.independent",
+  dependent: "paperDrawer.role.dependent",
+  mediator: "paperDrawer.role.mediator",
+  moderator: "paperDrawer.role.moderator",
+  control: "paperDrawer.role.control",
+  outcome: "paperDrawer.role.outcome",
+};
 
 export function PaperDetailDrawer() {
+  const { t, formatNumber } = useI18n();
   const selectedPaperId = useWorkspaceStore((s) => s.selectedPaperId);
   const selectedScaleId = useWorkspaceStore((s) => s.selectedScaleId);
   const focusPaperDetail = useWorkspaceStore((s) => s.focusPaperDetail);
@@ -23,13 +35,13 @@ export function PaperDetailDrawer() {
       <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
         <div className="flex items-center gap-2">
           <BookOpen className="h-4 w-4 text-indigo-600" />
-          <h2 className="text-sm font-semibold text-slate-900">Makale & Ölçek Detayı</h2>
+          <h2 className="text-sm font-semibold text-slate-900">{t("paperDrawer.title")}</h2>
         </div>
         <button
           type="button"
           onClick={() => focusPaperDetail(null)}
           className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-          aria-label="Detay çekmecesini kapat"
+          aria-label={t("paperDrawer.closeAria")}
         >
           <X className="h-4 w-4" />
         </button>
@@ -39,47 +51,48 @@ export function PaperDetailDrawer() {
         {detailQuery.isLoading ? (
           <div className="flex items-center gap-2 py-12 text-sm text-slate-500">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Makale ayrıntıları yükleniyor...
+            {t("paperDrawer.loading")}
           </div>
         ) : detailQuery.isError ? (
           <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800">
             {detailQuery.error instanceof ApiClientError
               ? `${detailQuery.error.error_code}: ${detailQuery.error.message}`
-              : "Makale detayı alınamadı."}
+              : t("paperDrawer.loadFailed")}
           </div>
         ) : data ? (
           <div className="space-y-5">
             <div>
               <h3 className="text-base font-semibold leading-snug text-slate-900">{data.paper.title}</h3>
               <p className="mt-1 text-xs text-slate-600">
-                {data.paper.authors.length > 0 ? data.paper.authors.join(", ") : "Yazar belirtilmemiş"}
+                {data.paper.authors.length > 0 ? data.paper.authors.join(", ") : t("paperDrawer.noAuthors")}
                 {data.paper.year ? ` (${data.paper.year})` : ""}
                 {data.paper.journal ? ` · ${data.paper.journal}` : ""}
               </p>
               <div className="mt-2.5 flex flex-wrap gap-2 text-[11px]">
                 <span className="rounded bg-slate-100 px-2 py-1 font-medium text-slate-700 tabular-nums">
-                  Örneklem N: {data.paper.sample_size ?? "—"}
+                  {t("paperDrawer.sampleN")}: {data.paper.sample_size !== null ? formatNumber(data.paper.sample_size) : t("common.dash")}
                 </span>
                 <span className="rounded bg-slate-100 px-2 py-1 font-medium text-slate-700">
-                  Tasarım: {data.paper.research_design ?? "—"}
+                  {t("paperDrawer.design")}: {data.paper.research_design ?? t("common.dash")}
                 </span>
                 <span className="rounded bg-slate-100 px-2 py-1 font-medium text-slate-700">
-                  Yöntemler: {data.paper.statistical_methods.join(", ") || "—"}
+                  {t("paperDrawer.methods")}: {data.paper.statistical_methods.join(", ") || t("common.dash")}
                 </span>
               </div>
               {data.paper.sample_population && (
                 <p className="mt-2 text-xs text-slate-600">
-                  <span className="font-medium text-slate-700">Örneklem Profili:</span> {data.paper.sample_population}
+                  <span className="font-medium text-slate-700">{t("paperDrawer.sampleProfile")}</span>{" "}
+                  {data.paper.sample_population}
                 </p>
               )}
             </div>
 
             <section>
               <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Ölçekler ({data.scales.length})
+                {t("paperDrawer.scalesTitle", { count: data.scales.length })}
               </h4>
               {data.scales.length === 0 ? (
-                <p className="text-xs text-slate-500">Ölçek kaydı bulunamadı.</p>
+                <p className="text-xs text-slate-500">{t("paperDrawer.noScales")}</p>
               ) : (
                 <div className="space-y-2">
                   {data.scales.map((scale) => {
@@ -93,36 +106,38 @@ export function PaperDetailDrawer() {
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="font-semibold text-slate-900">{scale.name}</div>
-                          <span className="shrink-0 rounded bg-white px-1.5 py-0.5 text-[11px] font-medium text-slate-600 tabular-nums border border-slate-200">
-                            s. {scale.page_number}
+                          <span className="shrink-0 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-slate-600 tabular-nums">
+                            {t("common.pageShort", { page: scale.page_number })}
                           </span>
                         </div>
                         <div className="mt-1 text-[11px] text-slate-600">
-                          Kaynak: {scale.original_authors ?? "—"}
-                          {scale.original_year ? ` (${scale.original_year})` : ""} · Format:{" "}
-                          {scale.response_format ?? "—"}
+                          {t("paperDrawer.scaleSource")} {scale.original_authors ?? t("common.dash")}
+                          {scale.original_year ? ` (${scale.original_year})` : ""} · {t("paperDrawer.scaleFormat")}{" "}
+                          {scale.response_format ?? t("common.dash")}
                         </div>
                         <div className="mt-2 grid grid-cols-4 gap-2 text-[11px] tabular-nums">
-                          <div className="rounded bg-white px-2 py-1 border border-slate-200">
-                            <span className="text-slate-500">Madde:</span>{" "}
-                            <span className="font-semibold">{scale.item_count ?? "—"}</span>
+                          <div className="rounded border border-slate-200 bg-white px-2 py-1">
+                            <span className="text-slate-500">{t("paperDrawer.itemsShort")}</span>{" "}
+                            <span className="font-semibold">{scale.item_count ?? t("common.dash")}</span>
                           </div>
-                          <div className="rounded bg-white px-2 py-1 border border-slate-200">
+                          <div className="rounded border border-slate-200 bg-white px-2 py-1">
                             <span className="text-slate-500">α:</span>{" "}
                             <span className="font-semibold">
-                              {scale.cronbach_alpha !== null ? scale.cronbach_alpha.toFixed(2) : "—"}
+                              {scale.cronbach_alpha !== null ? scale.cronbach_alpha.toFixed(2) : t("common.dash")}
                             </span>
                           </div>
-                          <div className="rounded bg-white px-2 py-1 border border-slate-200">
+                          <div className="rounded border border-slate-200 bg-white px-2 py-1">
                             <span className="text-slate-500">CR:</span>{" "}
                             <span className="font-semibold">
-                              {scale.composite_reliability !== null ? scale.composite_reliability.toFixed(2) : "—"}
+                              {scale.composite_reliability !== null
+                                ? scale.composite_reliability.toFixed(2)
+                                : t("common.dash")}
                             </span>
                           </div>
-                          <div className="rounded bg-white px-2 py-1 border border-slate-200">
+                          <div className="rounded border border-slate-200 bg-white px-2 py-1">
                             <span className="text-slate-500">AVE:</span>{" "}
                             <span className="font-semibold">
-                              {scale.ave !== null ? scale.ave.toFixed(2) : "—"}
+                              {scale.ave !== null ? scale.ave.toFixed(2) : t("common.dash")}
                             </span>
                           </div>
                         </div>
@@ -138,7 +153,7 @@ export function PaperDetailDrawer() {
 
             <section>
               <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Değişkenler & Roller ({data.variables.length})
+                {t("paperDrawer.variablesTitle", { count: data.variables.length })}
               </h4>
               <div className="flex flex-wrap gap-1.5">
                 {data.variables.map((pv) => (
@@ -147,7 +162,9 @@ export function PaperDetailDrawer() {
                     className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-800"
                   >
                     <span className="font-medium">{pv.local_name}</span>
-                    <span className="rounded bg-slate-200 px-1 py-0.2 text-[10px] text-slate-700">{pv.role}</span>
+                    <span className="rounded bg-slate-200 px-1 py-0.2 text-[10px] text-slate-700">
+                      {t(ROLE_KEY[pv.role])}
+                    </span>
                   </span>
                 ))}
               </div>
@@ -155,14 +172,14 @@ export function PaperDetailDrawer() {
 
             <section>
               <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Sayfa Referanslı Ana İddialar ({data.claims.length})
+                {t("paperDrawer.claimsTitle", { count: data.claims.length })}
               </h4>
               <div className="space-y-2">
                 {data.claims.map((claim) => (
                   <div key={claim.id} className="rounded-lg border border-slate-200 p-2.5 text-xs">
                     <div className="flex items-center justify-between text-[11px] text-slate-500">
                       <span className="font-medium uppercase">{claim.claim_type}</span>
-                      <span className="tabular-nums">s. {claim.page_number}</span>
+                      <span className="tabular-nums">{t("common.pageShort", { page: claim.page_number })}</span>
                     </div>
                     <p className="mt-1 text-slate-800">{claim.claim_text}</p>
                     {claim.quote_snippet && (

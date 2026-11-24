@@ -485,6 +485,7 @@ class AuditParagraphRequest(ContractModel):
     paragraph_text: str = Field(min_length=1)
     style_profile_id: str | None = None
     force_refresh: bool = False
+    locale: Literal["en", "tr"] | None = None
 
 
 class StyleExtractRequest(ContractModel):
@@ -492,6 +493,7 @@ class StyleExtractRequest(ContractModel):
     file_paths: list[str] = Field(default_factory=list)
     raw_texts: list[str] = Field(default_factory=list)
     set_active: bool = True
+    locale: Literal["en", "tr"] | None = None
 
 
 class ApiError(ContractModel):
@@ -528,6 +530,7 @@ class ConfigResponse(ContractModel):
     embedding_base_url: str | None = None
     embedding_model: str
     embedding_dim: int
+    ui_locale: Literal["en", "tr"] = "en"
     has_api_key: bool
     llm_api_key_masked: str = ""
 
@@ -541,6 +544,7 @@ class ConfigPatchRequest(ContractModel):
     embedding_base_url: str | None = None
     embedding_model: str | None = None
     embedding_dim: int | None = Field(default=None, gt=0)
+    ui_locale: Literal["en", "tr"] | None = None
 
 
 class IngestPathsRequest(ContractModel):

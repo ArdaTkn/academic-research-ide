@@ -7,6 +7,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
+from app.core.i18n import Locale, resolve_locale, t
 from app.db.sqlite import ResearchRepository, utc_now_iso
 from app.db.vector_store import EmbeddingProvider, VectorStore
 from app.models.schemas import (
@@ -214,12 +215,12 @@ def _directions_oppose(claimed: RelationshipDirection, observed: RelationshipDir
     return False
 
 
-def _format_citation_suggestion(paper: dict[str, Any], page_number: int | None) -> str:
+def _format_citation_suggestion(paper: dict[str, Any], page_number: int | None, locale: Locale = "en") -> str:
     authors = json.loads(paper.get("authors_json") or "[]")
     first_author = authors[0].split()[-1] if authors and isinstance(authors[0], str) and authors[0].strip() else paper["title"][:24]
-    year = paper.get("year") or "t.y."
-    page_part = f", s. {page_number}" if page_number else ""
-    return f"Önerilen atıf: ({first_author}, {year}{page_part})"
+    year = paper.get("year") or ("t.y." if locale == "tr" else "n.d.")
+    page_part = t(locale, "critic.page_part", page=page_number) if page_number else ""
+    return t(locale, "critic.citation_suggestion", author=first_author, year=year, page_part=page_part)
 
 
 class CriticService:
@@ -235,13 +236,14 @@ class CriticService:
         self.vector_store = vector_store
         self.embedder = embedder
 
-    def audit_paragraph(self, draft_id: str, req: AuditParagraphRequest) -> AuditResult:
+    def audit_paragraph(self, draft_id: str, req: AuditParagraphRequest, *, locale: Locale = "en") -> AuditResult:
+        active_locale = resolve_locale(explicit=req.locale, default=locale)
         draft = self.repo.get_draft(draft_id)
         style_profile = self._resolve_style_profile(req.style_profile_id or draft.style_profile_id)
         pool_fp = self.repo.get_pool_fingerprint()
 
         normalized_text = req.paragraph_text.strip()
-        cache_key_raw = f"{normalized_text}|{style_profile.id if style_profile else 'none'}|{pool_fp}"
+        cache_key_raw = f"{normalized_text}|{style_profile.id if style_profile else 'none'}|{pool_fp}|{active_locale}"
         paragraph_hash = hashlib.sha256(cache_key_raw.encode("utf-8")).hexdigest()
 
         if not req.force_refresh:
@@ -304,7 +306,7 @@ class CriticService:
                 for rel in matching_rels:
                     obs_dir = RelationshipDirection(rel["direction"])
                     paper = snapshot.papers_by_id.get(rel["paper_id"])
-                    paper_title = paper["title"] if paper else "Bilinmeyen Makale"
+                    paper_title = paper["title"] if paper else t(active_locale, "critic.unknown_paper")
 
                     if claimed_dir is not None and _directions_oppose(claimed_dir, obs_dir):
                         sent_has_contradiction = True
@@ -315,13 +317,15 @@ class CriticService:
                                 finding_type=AuditFindingType.CONTRADICTION,
                                 severity=Severity.ERROR,
                                 excerpt=sentence,
-                                explanation=(
-                                    f"Cümledeki '{claimed_dir.value}' yönlü iddia, '{paper_title}' makalesindeki "
-                                    f"'{obs_dir.value}' bulgusuyla (s. {rel['page_number']}) çelişmektedir."
+                                explanation=t(
+                                    active_locale,
+                                    "critic.contradiction",
+                                    claimed=claimed_dir.value,
+                                    paper=paper_title,
+                                    observed=obs_dir.value,
+                                    page=rel["page_number"],
                                 ),
-                                suggestion=(
-                                    "Bu çelişkiyi literatürdeki ayrışma olarak açıkça belirtin veya örneklem/yöntem farkına atıf yapın."
-                                ),
+                                suggestion=t(active_locale, "critic.contradiction_suggestion"),
                                 related_paper_id=rel["paper_id"],
                                 related_claim_id=None,
                                 related_relationship_id=rel["id"],
@@ -340,11 +344,18 @@ class CriticService:
                                 finding_type=AuditFindingType.SUPPORTING_EVIDENCE,
                                 severity=Severity.INFO,
                                 excerpt=sentence,
-                                explanation=(
-                                    f"'{paper_title}' makalesi (s. {rel['page_number']}) bu ilişkiyi "
-                                    f"'{obs_dir.value}' yönünde desteklemektedir."
+                                explanation=t(
+                                    active_locale,
+                                    "critic.support_rel",
+                                    paper=paper_title,
+                                    page=rel["page_number"],
+                                    observed=obs_dir.value,
                                 ),
-                                suggestion=_format_citation_suggestion(paper, rel["page_number"]) if paper else None,
+                                suggestion=(
+                                    _format_citation_suggestion(paper, rel["page_number"], active_locale)
+                                    if paper
+                                    else None
+                                ),
                                 related_paper_id=rel["paper_id"],
                                 related_claim_id=None,
                                 related_relationship_id=rel["id"],
@@ -362,11 +373,13 @@ class CriticService:
                                     finding_type=AuditFindingType.MISSING_CITATION,
                                     severity=Severity.WARNING,
                                     excerpt=sentence,
-                                    explanation=(
-                                        f"İddia yerel havuzdaki '{paper_title}' (s. {rel['page_number']}) ile destekleniyor "
-                                        "ancak cümlede satır içi atıf bulunamadı."
+                                    explanation=t(
+                                        active_locale,
+                                        "critic.missing_cite_rel",
+                                        paper=paper_title,
+                                        page=rel["page_number"],
                                     ),
-                                    suggestion=_format_citation_suggestion(paper, rel["page_number"]),
+                                    suggestion=_format_citation_suggestion(paper, rel["page_number"], active_locale),
                                     related_paper_id=rel["paper_id"],
                                     related_claim_id=None,
                                     related_relationship_id=rel["id"],
@@ -393,7 +406,7 @@ class CriticService:
 
                 if best_claim is not None:
                     paper = snapshot.papers_by_id.get(best_claim["paper_id"])
-                    paper_title = paper["title"] if paper else "Bilinmeyen Makale"
+                    paper_title = paper["title"] if paper else t(active_locale, "critic.unknown_paper")
                     sent_has_support = True
                     findings.append(
                         AuditFinding(
@@ -402,10 +415,17 @@ class CriticService:
                             finding_type=AuditFindingType.SUPPORTING_EVIDENCE,
                             severity=Severity.INFO,
                             excerpt=sentence,
-                            explanation=(
-                                f"'{paper_title}' makalesindeki ana iddia (s. {best_claim['page_number']}) ile anlamca örtüşmektedir."
+                            explanation=t(
+                                active_locale,
+                                "critic.support_claim",
+                                paper=paper_title,
+                                page=best_claim["page_number"],
                             ),
-                            suggestion=_format_citation_suggestion(paper, best_claim["page_number"]) if paper else None,
+                            suggestion=(
+                                _format_citation_suggestion(paper, best_claim["page_number"], active_locale)
+                                if paper
+                                else None
+                            ),
                             related_paper_id=best_claim["paper_id"],
                             related_claim_id=best_claim["id"],
                             related_relationship_id=None,
@@ -423,10 +443,13 @@ class CriticService:
                                 finding_type=AuditFindingType.MISSING_CITATION,
                                 severity=Severity.WARNING,
                                 excerpt=sentence,
-                                explanation=(
-                                    f"Cümle '{paper_title}' (s. {best_claim['page_number']}) iddiasıyla örtüşüyor ancak atıf eksik."
+                                explanation=t(
+                                    active_locale,
+                                    "critic.missing_cite_claim",
+                                    paper=paper_title,
+                                    page=best_claim["page_number"],
                                 ),
-                                suggestion=_format_citation_suggestion(paper, best_claim["page_number"]),
+                                suggestion=_format_citation_suggestion(paper, best_claim["page_number"], active_locale),
                                 related_paper_id=best_claim["paper_id"],
                                 related_claim_id=best_claim["id"],
                                 related_relationship_id=None,
@@ -450,10 +473,15 @@ class CriticService:
                                 finding_type=AuditFindingType.SUPPORTING_EVIDENCE,
                                 severity=Severity.INFO,
                                 excerpt=sentence,
-                                explanation=(
-                                    f"'{paper['title']}' makalesinin {top_hit['page_number']}. sayfasındaki pasajla desteklenmektedir."
+                                explanation=t(
+                                    active_locale,
+                                    "critic.support_chunk",
+                                    paper=paper["title"],
+                                    page=int(top_hit["page_number"]),
                                 ),
-                                suggestion=_format_citation_suggestion(paper, int(top_hit["page_number"])),
+                                suggestion=_format_citation_suggestion(
+                                    paper, int(top_hit["page_number"]), active_locale
+                                ),
                                 related_paper_id=str(top_hit["paper_id"]),
                                 related_claim_id=None,
                                 related_relationship_id=None,
@@ -477,12 +505,8 @@ class CriticService:
                         finding_type=AuditFindingType.UNSUPPORTED_CLAIM,
                         severity=Severity.WARNING,
                         excerpt=sentence,
-                        explanation=(
-                            "Bu ampirik iddia yerel makale havuzundaki doğrulanmış ilişkiler veya iddialar arasında desteklenemedi."
-                        ),
-                        suggestion=(
-                            "İlgili makaleyi PDF havuzuna ekleyin, ifadenin kesinliğini yumuşatın veya doğrudan kaynak atfı belirtin."
-                        ),
+                        explanation=t(active_locale, "critic.unsupported"),
+                        suggestion=t(active_locale, "critic.unsupported_suggestion"),
                         related_paper_id=None,
                         related_claim_id=None,
                         related_relationship_id=None,
@@ -499,6 +523,7 @@ class CriticService:
             style_profile=style_profile,
             audit_result_id=audit_result_id,
             now=now,
+            locale=active_locale,
         )
         findings.extend(style_findings)
 
@@ -516,9 +541,13 @@ class CriticService:
         else:
             overall_status = AuditOverallStatus.SUPPORTED
 
-        summary = (
-            f"{empirical_sentences} ampirik cümleden {supported_sentences} desteklendi, "
-            f"{contradicted_sentences} çelişki ve {sum(1 for f in findings if f.finding_type == AuditFindingType.UNSUPPORTED_CLAIM)} desteksiz iddia saptandı."
+        summary = t(
+            active_locale,
+            "critic.summary",
+            empirical=empirical_sentences,
+            supported=supported_sentences,
+            contradicted=contradicted_sentences,
+            unsupported=sum(1 for f in findings if f.finding_type == AuditFindingType.UNSUPPORTED_CLAIM),
         )
 
         result = AuditResult(
@@ -575,6 +604,7 @@ class CriticService:
         style_profile: StyleProfile | None,
         audit_result_id: str,
         now: str,
+        locale: Locale = "en",
     ) -> tuple[float, list[AuditFinding]]:
         findings: list[AuditFinding] = []
         penalty = 0.0
@@ -594,11 +624,11 @@ class CriticService:
                         finding_type=AuditFindingType.STYLE_DEVIATION,
                         severity=Severity.WARNING,
                         excerpt=s,
-                        explanation=f"'{hit_abs}' gibi kesinlik bildiren ifade akademik ihtiyatlılık (hedging) normundan sapıyor.",
+                        explanation=t(locale, "critic.style_absolutist", marker=hit_abs),
                         suggestion=(
-                            f"Hedging ifadesi kullanın (ör. {', '.join(style_profile.hedging_phrases[:3])})."
+                            t(locale, "critic.style_hedge_with_list", phrases=", ".join(style_profile.hedging_phrases[:3]))
                             if style_profile and style_profile.hedging_phrases
-                            else "'may', 'indicates' veya 'göstermektedir' gibi ihtiyatlı ifadeler tercih edin."
+                            else t(locale, "critic.style_hedge_default")
                         ),
                         related_paper_id=None,
                         related_claim_id=None,
@@ -621,11 +651,14 @@ class CriticService:
                         finding_type=AuditFindingType.STYLE_DEVIATION,
                         severity=Severity.INFO,
                         excerpt=sentences[0],
-                        explanation=(
-                            f"Paragraf ortalama cümle uzunluğu ({para_avg_len:.1f} kelime), aktif '{style_profile.name}' "
-                            f"profilinizdeki ortalamadan ({style_profile.avg_sentence_length:.1f} kelime) belirgin biçimde sapıyor."
+                        explanation=t(
+                            locale,
+                            "critic.style_sentence_len",
+                            para_avg=para_avg_len,
+                            profile=style_profile.name,
+                            prof_avg=style_profile.avg_sentence_length,
                         ),
-                        suggestion="Cümle ritmini profilinizdeki ortalama uzunluğa yaklaştırmayı değerlendirin.",
+                        suggestion=t(locale, "critic.style_sentence_len_suggestion"),
                         related_paper_id=None,
                         related_claim_id=None,
                         related_relationship_id=None,

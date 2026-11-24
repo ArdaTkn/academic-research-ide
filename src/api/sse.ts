@@ -1,4 +1,6 @@
 import { apiClient, resolveApiBaseUrl } from "@/api/client";
+import { translate } from "@/i18n";
+import { useWorkspaceStore } from "@/stores/useWorkspaceStore";
 import type { IngestionJob } from "@/types/contracts";
 
 export interface JobSubscriptionCallbacks {
@@ -99,7 +101,11 @@ export function subscribeToJob(
           reconnectCount = 0;
           handleJobPayload(job);
         } catch (err) {
-          callbacks.onError(err instanceof Error ? err : new Error("SSE verisi ayrıştırılamadı."));
+          callbacks.onError(
+            err instanceof Error
+              ? err
+              : new Error(translate(useWorkspaceStore.getState().locale, "err.sseParseFailed"))
+          );
         }
       });
 

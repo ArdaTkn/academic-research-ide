@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Merge, X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { apiClient, ApiClientError } from "@/api/client";
+import { useI18n } from "@/i18n";
 import type { GraphNode } from "@/types/contracts";
 
 interface VariableMergeModalProps {
@@ -17,6 +18,7 @@ export function VariableMergeModal({
   nodes,
   defaultTargetId = null,
 }: VariableMergeModalProps) {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const [targetId, setTargetId] = useState<string>(defaultTargetId ?? "");
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
@@ -61,7 +63,7 @@ export function VariableMergeModal({
     mutation.error instanceof ApiClientError
       ? `${mutation.error.error_code}: ${mutation.error.message}`
       : mutation.isError
-        ? "Değişken birleştirme başarısız oldu."
+        ? t("merge.failed")
         : null;
 
   return (
@@ -70,28 +72,25 @@ export function VariableMergeModal({
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
           <div className="flex items-center gap-2">
             <Merge className="h-4 w-4 text-indigo-600" />
-            <h2 className="text-sm font-semibold text-slate-900">Kanonik Değişken Birleştirme</h2>
+            <h2 className="text-sm font-semibold text-slate-900">{t("merge.title")}</h2>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-            aria-label="Birleştirme penceresini kapat"
+            aria-label={t("merge.closeAria")}
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 p-5 text-xs">
-          <p className="text-slate-600">
-            Farklı adlarla çıkarılmış eş anlamlı kavramları (örn. <em>Telecommuting</em> → <em>Remote Work</em>) tek
-            kanonik düğümde birleştirin. Tüm ilişkiler, ölçekler ve çelişkiler otomatik güncellenir.
-          </p>
+          <p className="text-slate-600">{t("merge.description")}</p>
 
           <label className="block font-medium text-slate-700">
-            Hedef Kanonik Değişken (Korunacak)
+            {t("merge.targetLabel")}
             <select
-              aria-label="Hedef Kanonik Değişken"
+              aria-label={t("merge.targetLabel")}
               value={targetId}
               onChange={(e) => {
                 const nextTarget = e.target.value;
@@ -102,7 +101,7 @@ export function VariableMergeModal({
             >
               {nodes.map((node) => (
                 <option key={node.variable_id} value={node.variable_id}>
-                  {node.display_label} ({node.paper_count} makale)
+                  {node.display_label} ({t("graph.node.papers", { count: node.paper_count })})
                 </option>
               ))}
             </select>
@@ -110,7 +109,7 @@ export function VariableMergeModal({
 
           <div>
             <div className="mb-1.5 font-medium text-slate-700">
-              Birleştirilecek Kaynak Değişkenler ({selectedSources.length} seçili)
+              {t("merge.sourcesLabel", { count: selectedSources.length })}
             </div>
             <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-2">
               {nodes
@@ -131,7 +130,9 @@ export function VariableMergeModal({
                         />
                         <span>{node.display_label}</span>
                       </span>
-                      <span className="text-[11px] text-slate-500 tabular-nums">{node.paper_count} makale</span>
+                      <span className="text-[11px] text-slate-500 tabular-nums">
+                        {t("graph.node.papers", { count: node.paper_count })}
+                      </span>
                     </label>
                   );
                 })}
@@ -148,7 +149,7 @@ export function VariableMergeModal({
               onClick={onClose}
               className="rounded-lg border border-slate-200 px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50"
             >
-              Vazgeç
+              {t("common.cancel")}
             </button>
             <button
               type="submit"
@@ -156,7 +157,7 @@ export function VariableMergeModal({
               className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-1.5 font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
             >
               {mutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Merge className="h-3.5 w-3.5" />}
-              <span>Birleştir</span>
+              <span>{t("merge.submit")}</span>
             </button>
           </div>
         </form>

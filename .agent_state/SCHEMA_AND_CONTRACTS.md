@@ -736,6 +736,7 @@ class AuditParagraphRequest(ContractModel):
     paragraph_text: str = Field(min_length=1)
     style_profile_id: str | None = None
     force_refresh: bool = False
+    locale: Literal["en", "tr"] | None = None
 
 
 class StyleExtractRequest(ContractModel):
@@ -743,6 +744,7 @@ class StyleExtractRequest(ContractModel):
     file_paths: list[str] = Field(default_factory=list)
     raw_texts: list[str] = Field(default_factory=list)
     set_active: bool = True
+    locale: Literal["en", "tr"] | None = None
 
 
 class ApiError(ContractModel):
@@ -1113,11 +1115,14 @@ export interface ScaleMatrixResponse {
   offset: number;
 }
 
+export type UiLocale = "en" | "tr";
+
 export interface AuditParagraphRequest {
   paragraph_index: number;
   paragraph_text: string;
   style_profile_id?: string | null;
   force_refresh?: boolean;
+  locale?: UiLocale | null;
 }
 
 export interface StyleExtractRequest {
@@ -1125,6 +1130,7 @@ export interface StyleExtractRequest {
   file_paths?: string[];
   raw_texts?: string[];
   set_active?: boolean;
+  locale?: UiLocale | null;
 }
 
 export interface ApiError {
@@ -1158,6 +1164,7 @@ export interface ConfigResponse {
   embedding_base_url: string | null;
   embedding_model: string;
   embedding_dim: number;
+  ui_locale: UiLocale;
   has_api_key: boolean;
   llm_api_key_masked: string;
 }
@@ -1171,6 +1178,7 @@ export interface ConfigPatchRequest {
   embedding_base_url?: string | null;
   embedding_model?: string | null;
   embedding_dim?: number | null;
+  ui_locale?: UiLocale | null;
 }
 
 export interface IngestPathsRequest {
@@ -1230,8 +1238,8 @@ export interface DismissFindingRequest {
 | Metot | Yol | İstek | Yanıt | Açıklama |
 |---|---|---|---|---|
 | `GET` | `/api/v1/health` | — | `HealthResponse` | SQLite, LanceDB ve aktif LLM sağlık durumu |
-| `GET` | `/api/v1/config` | — | `{ llm_provider, llm_model, llm_base_url, embedding_provider, embedding_base_url, embedding_model, embedding_dim, has_api_key, llm_api_key_masked }` | Yerel/API model ayarları (gizli anahtarlar maskeli) |
-| `PATCH` | `/api/v1/config` | Kısmi config JSON (`llm_api_key` dahil) | Güncel `ConfigResponse` | LLM/embedding sağlayıcı, base URL, model ve API key güncelleme |
+| `GET` | `/api/v1/config` | — | `{ llm_provider, llm_model, llm_base_url, embedding_provider, embedding_base_url, embedding_model, embedding_dim, ui_locale, has_api_key, llm_api_key_masked }` | Yerel/API model ayarları ve arayüz dili (`en` \| `tr`) |
+| `PATCH` | `/api/v1/config` | Kısmi config JSON (`llm_api_key`, `ui_locale` dahil) | Güncel `ConfigResponse` | LLM/embedding sağlayıcı, model, API key ve `ui_locale` güncelleme |
 
 ### 6.2 Ingestion & Makale Havuzu
 | Metot | Yol | İstek | Yanıt | Açıklama |
@@ -1247,8 +1255,8 @@ export interface DismissFindingRequest {
 ### 6.3 Sekme 1 — Kavram, Boşluk & Çelişki Haritası
 | Metot | Yol | İstek / Query | Yanıt | Açıklama |
 |---|---|---|---|---|
-| `GET` | `/api/v1/graph` | `min_paper_count`, `direction`, `year_from`, `year_to`, `variable_ids` | `GraphResponse` | Düğüm, kenar, araştırma boşluğu ve çelişki kümelerini döner |
-| `GET` | `/api/v1/graph/gaps` | `limit`, `min_gap_score` | `ResearchGap[]` | Yüksek ortak-komşulu ancak doğrudan çalışılmamış çiftler |
+| `GET` | `/api/v1/graph` | `min_paper_count`, `direction`, `year_from`, `year_to`, `variable_ids`, `locale` | `GraphResponse` | Düğüm, kenar, araştırma boşluğu ve çelişki kümelerini döner |
+| `GET` | `/api/v1/graph/gaps` | `limit`, `min_gap_score`, `locale` | `ResearchGap[]` | Yüksek ortak-komşulu ancak doğrudan çalışılmamış çiftler |
 | `GET` | `/api/v1/graph/contradictions` | `edge_key` (opsiyonel) | `ContradictionCluster[]` | Zıt yönlü bulguları makale + sayfa referansıyla yan yana döner |
 | `POST` | `/api/v1/variables/merge` | `{ source_variable_ids: string[], target_variable_id: string }` | `Variable` | Yinelenen değişkenleri tek kanonik değişkende birleştirir |
 
@@ -1257,7 +1265,7 @@ export interface DismissFindingRequest {
 |---|---|---|---|---|
 | `GET` | `/api/v1/matrix/scales` | `ScaleMatrixFilter` query parametreleri | `ScaleMatrixResponse` | Filtrelenebilir, sıralanabilir ölçek ve yöntem tablosu |
 | `GET` | `/api/v1/matrix/methods` | — | `Array<{ method: string, count: number }>` | Filtre açılır menüsü için tekil istatistiksel yöntem sayımları |
-| `GET` | `/api/v1/matrix/export` | `format=csv|json` + `ScaleMatrixFilter` | İndirilebilir `text/csv` veya `application/json` | Matris dışa aktarımı |
+| `GET` | `/api/v1/matrix/export` | `format=csv\|json`, `locale=en\|tr` + `ScaleMatrixFilter` | İndirilebilir `text/csv` veya `application/json` | Matris dışa aktarımı (CSV sütun başlıkları `locale` ile yerelleştirilir) |
 
 ### 6.5 Sekme 3 — Taslak, Stil Profili & Kanıt/Çelişki Denetçisi
 | Metot | Yol | İstek | Yanıt | Açıklama |

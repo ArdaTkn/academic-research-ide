@@ -28,6 +28,8 @@ import type {
   Variable,
   VariableMergeRequest,
 } from "@/types/contracts";
+import { translate } from "@/i18n";
+import { useWorkspaceStore } from "@/stores/useWorkspaceStore";
 
 export interface GraphFilterParams {
   min_paper_count?: number;
@@ -104,7 +106,7 @@ async function parseErrorResponse(response: Response): Promise<ApiClientError> {
   }
   return new ApiClientError(response.status, {
     error_code: `HTTP_${response.status}`,
-    message: response.statusText || "Sunucu beklenmeyen bir hata döndürdü.",
+    message: response.statusText || translate(useWorkspaceStore.getState().locale, "err.httpGeneric"),
     details: {},
     request_id: null,
   });
@@ -112,13 +114,19 @@ async function parseErrorResponse(response: Response): Promise<ApiClientError> {
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const baseUrl = await resolveApiBaseUrl();
+  const locale = useWorkspaceStore.getState().locale;
+  const headers = new Headers(init?.headers);
+  if (!headers.has("Accept-Language")) {
+    headers.set("Accept-Language", locale);
+  }
+
   let response: Response;
   try {
-    response = await fetch(`${baseUrl}${path}`, init);
+    response = await fetch(`${baseUrl}${path}`, { ...init, headers });
   } catch (err) {
     throw new ApiClientError(0, {
       error_code: "BACKEND_UNREACHABLE",
-      message: "Yerel FastAPI arka ucuna bağlanılamadı. Servisin çalıştığından emin olun.",
+      message: translate(locale, "err.backendUnreachable"),
       details: { cause: err instanceof Error ? err.message : String(err), base_url: baseUrl },
       request_id: null,
     });
@@ -242,16 +250,20 @@ export const apiClient = {
 
   async downloadMatrixExport(format: "csv" | "json", filters: ScaleMatrixFilter): Promise<void> {
     const baseUrl = await resolveApiBaseUrl();
+    const locale = useWorkspaceStore.getState().locale;
     const params = buildMatrixQueryParams({ ...filters, limit: undefined, offset: undefined });
     params.set("format", format);
+    params.set("locale", locale);
 
     let response: Response;
     try {
-      response = await fetch(`${baseUrl}/matrix/export?${params.toString()}`);
+      response = await fetch(`${baseUrl}/matrix/export?${params.toString()}`, {
+        headers: { "Accept-Language": locale },
+      });
     } catch (err) {
       throw new ApiClientError(0, {
         error_code: "BACKEND_UNREACHABLE",
-        message: "Dışa aktarım için arka uca bağlanılamadı.",
+        message: translate(locale, "err.exportUnreachable"),
         details: { cause: err instanceof Error ? err.message : String(err) },
         request_id: null,
       });
@@ -276,7 +288,9 @@ export const apiClient = {
   },
 
   getGraph(params?: GraphFilterParams): Promise<GraphResponse> {
+    const locale = useWorkspaceStore.getState().locale;
     const qs = new URLSearchParams();
+    qs.set("locale", locale);
     if (params?.min_paper_count !== undefined && params.min_paper_count > 1) {
       qs.set("min_paper_count", String(params.min_paper_count));
     }
@@ -299,7 +313,9 @@ export const apiClient = {
   },
 
   getGraphGaps(params?: { limit?: number; min_gap_score?: number }): Promise<ResearchGap[]> {
+    const locale = useWorkspaceStore.getState().locale;
     const qs = new URLSearchParams();
+    qs.set("locale", locale);
     if (params?.limit !== undefined) qs.set("limit", String(params.limit));
     if (params?.min_gap_score !== undefined) qs.set("min_gap_score", String(params.min_gap_score));
     const suffix = qs.toString() ? `?${qs.toString()}` : "";
@@ -354,10 +370,11 @@ export const apiClient = {
   },
 
   auditDraftParagraph(draft_id: string, payload: AuditParagraphRequest): Promise<AuditResult> {
+    const locale = payload.locale ?? useWorkspaceStore.getState().locale;
     return requestJson<AuditResult>(`/drafts/${encodeURIComponent(draft_id)}/audit`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ ...payload, locale }),
     });
   },
 
@@ -374,10 +391,11 @@ export const apiClient = {
   },
 
   extractStyleProfile(payload: StyleExtractRequest): Promise<StyleProfile> {
+    const locale = payload.locale ?? useWorkspaceStore.getState().locale;
     return requestJson<StyleProfile>("/style-profiles/extract", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ ...payload, locale }),
     });
   },
 

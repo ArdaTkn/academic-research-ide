@@ -1,70 +1,77 @@
 # Academic Research IDE
 
+**English** | [Türkçe](README.tr.md)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-indigo.svg)](LICENSE)
 [![Tauri v2](https://img.shields.io/badge/Desktop-Tauri%20v2-24C8DB.svg)](https://v2.tauri.app/)
 [![React 19 + TypeScript](https://img.shields.io/badge/Frontend-React%2019%20%2B%20TS-61DAFB.svg)](https://react.dev/)
 [![FastAPI + Python 3.12](https://img.shields.io/badge/Backend-FastAPI%20%2B%20Python%203.12-009688.svg)](https://fastapi.tiangolo.com/)
+[![i18n: EN / TR](https://img.shields.io/badge/i18n-EN%20%7C%20TR-blueviolet.svg)](src/i18n/)
 
-Yerel çalışan (local-first), **Tauri v2 + React/TypeScript + Python (FastAPI / SQLite / LanceDB)** tabanlı akademik literatür tarama, ölçek/yöntem kıyaslama, kavram-çelişki haritalama ve kaynak doğrulamalı yazım ortamı.
-
----
-
-## Temel Özellikler ve Modüller
-
-Uygulama, arka planda ortak **SQLite (WAL + FTS5)** ve **LanceDB** vektör veritabanından beslenen, ön yüzde ise birbirine bağlı 3 ana çalışma sekmesinden oluşur:
-
-1. **Arka Plan PDF Ayrıştırma & Vektör İndeksleme Hattı (`backend/app/pipeline/`)**
-   - `PyMuPDF` (birincil) + `pdfplumber` (tablo/yedek) ile sayfa numarası korumalı PDF metin çıkarımı.
-   - OpenAI uyumlu yapılandırılmış JSON çıkarımı (`PaperExtractionPayload`): bağımlı/bağımsız/aracı/düzenleyici değişkenler, yönlü ilişkiler (`+`, `-`, anlamsız, karışık, eğrisel), psikometrik ölçekler (Cronbach's α, CR, AVE, madde sayısı), örneklem profili ve sayfa referanslı iddialar.
-   - **Fail-closed doğrulama:** Bozuk/taranmış PDF veya şema/sayfa sınırı ihlali olan çıktılar veritabanına yazılmaz; `IngestionJob` ve SSE (`/api/v1/jobs/{job_id}/stream`) üzerinden şeffaf biçimde raporlanır.
-
-2. **Sekme 1 — Kavram, Boşluk & Çelişki Haritası (`src/features/graph-map/`)**
-   - `@xyflow/react` ve `@dagrejs/dagre` ile etkileşimli, yönlü kavram grafiği.
-   - **Araştırma Boşluğu (Research Gap):** Doğrudan çalışılmamış veya az çalışılmış ortak komşulu değişken çiftlerini kesikli kenarlar ve boşluk skoruyla vurgular.
-   - **Çelişki Kıyaslama Paneli:** Aynı ilişki için zıt sonuçlar bulan makaleleri etki yönü, etki büyüklüğü, `p` değeri, örneklem büyüklüğü (`N`), istatistiksel yöntem ve sayfa referansıyla yan yana kıyaslar.
-   - **Kanonik Değişken Birleştirme:** Eş anlamlı kavramları tek düğümde birleştirerek graf ve çelişki kümelerini anlık günceller.
-
-3. **Sekme 2 — Ölçek & Yöntem Matrisi (`src/features/scale-matrix/`)**
-   - `@tanstack/react-table` tabanlı çoklu filtreli ve sıralanabilir matris: ölçek adı, değişken, Cronbach α aralığı, madde sayısı, örneklem büyüklüğü, istatistiksel yöntem ve yayın yılı filtreleri.
-   - Satır detay çekmecesi ve etkin filtrelerle birebir uyumlu **CSV / JSON** dışa aktarım.
-
-4. **Sekme 3 — Taslak Editörü, Stil Profili & Kanıt/Çelişki Denetçisi (`src/features/draft-critic/`)**
-   - **Stil Profili Çıkarıcı:** Kullanıcının geçmiş `.md`, `.txt` veya `.pdf` akademik metinlerinden ortalama cümle uzunluğu, edilgenlik oranı, hedging/geçiş ifadeleri ve atıf biçimini çıkarır; örnekleri LanceDB `style_chunks` içine indeksler.
-   - **Kanıt & Çelişki Denetçisi:** Yazılan her paragrafı yerel makale havuzu (SQLite + LanceDB) ile çapraz kontrol eder; çelişkileri, eksik atıfları ve destekleyici kanıtları **sayfa referansı ve alıntı** ile gösterir. Havuzda karşılığı olmayan iddialar için asla uydurma kaynak veya sahte sayfa numarası üretmez.
+A local-first desktop workspace built on **Tauri v2 + React/TypeScript + Python (FastAPI / SQLite / LanceDB)** for structured academic literature ingestion, psychometric scale & method comparison, concept/gap/contradiction mapping, and style-aware draft auditing.
 
 ---
 
-## Çoklu Platform Desteği ve Yerel Gizlilik
+## Core Modules & Capabilities
 
-- **Desteklenen Platformlar:** **Windows**, **macOS** ve **Linux** (CachyOS / Hyprland dahil).
-- **Yerel Çalışma (Offline-First):** Varsayılan olarak yerel **Ollama** / **LM Studio** uç noktalarına bağlanacak şekilde yapılandırılmıştır; istenirse ayarlardan OpenAI uyumlu harici bir API anahtarı da tanımlanabilir.
-- **Standart Kullanıcı Veri Dizini:** Kişisel makale PDF'leri, SQLite veritabanı (`research.db`), LanceDB vektörleri ve `config.json` proje deposu içinde değil, işletim sisteminin standart uygulama veri dizininde saklanır (`RESEARCH_IDE_DATA_DIR` ile geçersiz kılınabilir):
+All tabs share a single local **SQLite (WAL + FTS5)** + **LanceDB** knowledge base inside the OS application data directory, surfaced through a clean 3-tab IDE with a collapsible PDF Paper Pool sidebar:
 
-| İşletim Sistemi | Varsayılan Kullanıcı Veri Dizini |
+1. **PDF Ingestion & Vector Indexing Pipeline (`backend/app/pipeline/`)**
+   - Page-preserving extraction using `PyMuPDF` (primary) and `pdfplumber` (table/fallback).
+   - OpenAI-compatible structured extraction (`PaperExtractionPayload`): independent/dependent/mediator/moderator/control variables, directed empirical relationships (`+`, `-`, insignificant, mixed, curvilinear), psychometric scales (Cronbach's α, CR, AVE, item count, response format), sample profile, and page-referenced claims.
+   - **Fail-closed validation:** Scanned/empty PDFs or schema/page-bounds violations are never silently swallowed into SQLite; progress and structured `ApiError` diagnostics stream live over SSE (`/api/v1/jobs/{job_id}/stream`).
+
+2. **Tab 1 — Concept, Gap & Contradiction Map (`src/features/graph-map/`)**
+   - Interactive directed variable network rendered with `@xyflow/react` and `@dagrejs/dagre`.
+   - **Research Gap Discovery:** Highlights unstudied or under-studied variable pairs sharing common network neighbors with computed gap scores.
+   - **Contradiction Comparison Panel:** Displays opposing empirical studies side-by-side with effect direction, effect size, `p`-value, sample size (`N`), statistical method, page number, and verbatim quote snippets.
+   - **Canonical Variable Merging:** Merge synonymous constructs into a canonical variable and immediately recompute graph edges and contradiction clusters.
+
+3. **Tab 2 — Scale & Method Matrix (`src/features/scale-matrix/`)**
+   - Sortable, multi-filter matrix (`@tanstack/react-table`) across scale name, variable, Cronbach's α threshold, item count, sample size, statistical method, and publication year.
+   - Direct jump to the `PaperDetailDrawer` plus localized **CSV / JSON** export matching active filters.
+
+4. **Tab 3 — Draft Editor, Style Profile & Evidence/Contradiction Critic (`src/features/draft-critic/`)**
+   - **Style Profile Extractor:** Analyzes your past `.md`, `.txt`, or `.pdf` writing to capture average sentence pacing, passive voice ratio, hedging/transition markers, and citation style, indexing style exemplars in LanceDB (`style_chunks`).
+   - **Evidence & Contradiction Critic:** Cross-checks each Markdown paragraph against your local SQLite + LanceDB pool for contradicting evidence, missing citations, supporting findings, and style deviations—**never fabricating citations or page numbers** when a claim has no pool match.
+
+5. **Full Bilingual Localization (`EN` / `TR`)**
+   - Instant live switching between **English** (`en`, default) and **Turkish** (`tr`) via the `EN / TR` toggle in the top bar or Settings modal.
+   - Persists across `localStorage` and backend `config.json` (`ui_locale`), localizing UI copy, backend audit/style/gap/error messages, number formatting, and CSV export headers without translating original PDF quotes or paper titles.
+
+---
+
+## Cross-Platform Support & Local Privacy
+
+- **Supported Operating Systems:** **Windows**, **macOS**, and **Linux** (including CachyOS / Hyprland).
+- **Offline-First LLM Integration:** Preconfigured for local **Ollama** (`http://127.0.0.1:11434/v1`) or **LM Studio**, with optional OpenAI-compatible remote endpoints in Settings.
+- **OS-Standard Data Storage:** User PDFs, `research.db` (SQLite), LanceDB tables, and `config.json` are stored outside the repository in the platform data directory (override via `RESEARCH_IDE_DATA_DIR`):
+
+| Operating System | Default Application Data Directory |
 |---|---|
 | **macOS** | `~/Library/Application Support/academic-research-ide/` |
 | **Windows** | `%APPDATA%\academic-research-ide\` |
-| **Linux** | `$XDG_DATA_HOME/academic-research-ide/` (veya `~/.local/share/academic-research-ide/`) |
+| **Linux** | `$XDG_DATA_HOME/academic-research-ide/` (or `~/.local/share/academic-research-ide/`) |
 
-Tauri v2 kabuğu (`src-tauri/src/lib.rs`), uygulama açılışında boş bir yerel port seçip FastAPI sidecar sürecini UTF-8 zorlamasıyla (`PYTHONUTF8=1`) başlatır ve uygulama kapatıldığında arka plan sürecini temiz biçimde sonlandırır.
+The Tauri v2 host (`src-tauri/src/lib.rs`) spawns the local FastAPI sidecar on a free localhost port with `PYTHONUTF8=1` and gracefully shuts it down on window exit.
 
 ---
 
-## Kurulum ve Çalıştırma
+## Getting Started
 
-### Önkoşullar
-- **Python 3.12** ve **[uv](https://docs.astral.sh/uv/)**
-- **Node.js 20+** ve **npm**
-- **Rust & Cargo** (Tauri v2 masaüstü derlemesi için — Linux'ta ek olarak Tauri v2 sistem paketleri `webkit2gtk-4.1`, `libayatana-appindicator` vb. gerekir)
-- *(Opsiyonel, canlı LLM çıkarımı için)* Yerel **Ollama** veya **LM Studio** sunucusu
+### Prerequisites
+- **Python 3.12** and **[uv](https://docs.astral.sh/uv/)**
+- **Node.js 20+** and **npm**
+- **Rust & Cargo** (for Tauri v2 desktop builds; on Linux, install standard Tauri v2 dependencies such as `webkit2gtk-4.1` and `libayatana-appindicator`)
+- *(Optional, for live LLM extraction)* Local **Ollama** or **LM Studio** server
 
-### 1. Depoyu Klonlayın
+### 1. Clone the Repository
 ```bash
-git clone <repo-url>
+git clone https://github.com/ArdaTkn/academic-research-ide.git
 cd academic-research-ide
 ```
 
-### 2. Backend Ortamını Kurun (Python 3.12 + `uv`)
+### 2. Set Up the Python 3.12 Backend (`uv`)
 ```bash
 cd backend
 uv python pin 3.12
@@ -73,25 +80,25 @@ uv sync --dev
 cd ..
 ```
 
-### 3. Frontend Bağımlılıklarını Kurun
+### 3. Install Frontend Dependencies
 ```bash
 npm install
 ```
 
-### 4. Ortam Değişkenlerini Hazırlayın *(Opsiyonel)*
+### 4. Configure Environment *(Optional)*
 ```bash
 cp .env.example .env
 ```
-Varsayılan ayarlar `http://127.0.0.1:11434/v1` (Ollama) ve `qwen2.5:14b` ile çalışacak şekilde yapılandırılmıştır. Uygulama içindeki **Model Ayarları** penceresinden de güncellenebilir.
+Defaults point to local Ollama (`http://127.0.0.1:11434/v1`, `qwen2.5:14b`) and English UI (`RESEARCH_IDE_UI_LOCALE=en`), all editable in the **Model & Interface Settings** modal.
 
-### 5. Uygulamayı Çalıştırın
+### 5. Run the Application
 
-**Seçenek A — Tam Masaüstü Uygulaması (Tauri v2 + Otomatik Python Sidecar):**
+**Option A — Full Desktop App (Tauri v2 + Managed Python Sidecar):**
 ```bash
 npm run tauri dev
 ```
 
-**Seçenek B — Ayrı Backend + Tarayıcı Geliştirme Modu:**
+**Option B — Separate Backend + Browser Dev Server:**
 ```bash
 # Terminal 1 (Backend)
 cd backend
@@ -103,66 +110,69 @@ npm run dev
 
 ---
 
-## Test ve Doğrulama Komutları
+## Testing & Verification
 
 ```bash
-# Backend testleri (SQLite, LanceDB, PDF/LLM dayanıklılık, Grafik, Taslak Denetçisi, E2E)
+# Backend suite (SQLite, LanceDB, PDF/LLM fail-closed guards, Graph, Draft Critic, i18n, E2E)
 cd backend && .venv/bin/pytest -v
 
-# Frontend tip kontrolü, Vitest testleri ve üretim derlemesi
+# Frontend typecheck, Vitest unit/component tests, and production bundle
 npm run typecheck
 npm run test
 npm run build
 
-# Tauri Rust çekirdeği derleme kontrolü
+# Tauri Rust host check
 cd src-tauri && cargo check
 ```
 
 ---
 
-## Proje Dizin Yapısı
+## Project Structure
 
 ```text
 academic-research-ide/
-├── .agent_state/               # Tek hakikat kaynağı şema, yol haritası ve mimari karar kayıtları
+├── .agent_state/               # Source-of-truth schema, roadmap, and architecture decision log
 │   ├── SCHEMA_AND_CONTRACTS.md
 │   ├── ROADMAP_AND_STATUS.md
 │   └── DECISION_LOG.md
 ├── backend/
 │   ├── app/
-│   │   ├── api/                # FastAPI /api/v1 yönlendiricileri
-│   │   ├── core/               # Çoklu platform yapılandırma & ApiError hata zarfı
-│   │   ├── db/                 # SQLite (WAL/FTS5) & LanceDB vektör deposu
-│   │   ├── models/             # Pydantic v2 sözleşme modelleri
-│   │   ├── pipeline/           # PDF çıkarıcı, LLM JSON çıkarıcı, normalizer & SSE worker
+│   │   ├── api/                # FastAPI /api/v1 routers
+│   │   ├── core/               # Cross-platform settings, i18n catalog, and ApiError envelopes
+│   │   ├── db/                 # SQLite (WAL/FTS5) & LanceDB vector store
+│   │   ├── models/             # Pydantic v2 contract schemas
+│   │   ├── pipeline/           # PDF extractor, LLM JSON extractor, normalizer & SSE worker
 │   │   └── services/           # GraphService, StyleService, CriticService
-│   ├── tests/                  # Pytest birim ve E2E testleri
+│   ├── tests/                  # Pytest unit & E2E tests
 │   └── pyproject.toml
 ├── src/
-│   ├── api/                    # Typed Fetch + dayanıklı SSE istemcisi
-│   ├── components/             # Üst çubuk, Ayarlar modalı, Makale Detay çekmecesi
+│   ├── api/                    # Typed Fetch client + resilient SSE stream subscriber
+│   ├── components/             # TopNavBar, SettingsModal, PaperDetailDrawer
 │   ├── features/
-│   │   ├── ingestion/          # PDF yükleme ve canlı SSE havuz kenar çubuğu
-│   │   ├── graph-map/          # Sekme 1: React Flow + Dagre + Çelişki kıyaslama
-│   │   ├── scale-matrix/       # Sekme 2: TanStack Table Ölçek & Yöntem Matrisi
-│   │   └── draft-critic/       # Sekme 3: Markdown editör, stil profili & kanıt denetçisi
-│   ├── stores/                 # Sekmeler arası paylaşımlı Zustand durumu
-│   └── types/                  # SCHEMA_AND_CONTRACTS.md ile birebir TypeScript tipleri
-├── src-tauri/                  # Tauri v2 Rust sidecar başlatıcısı ve temiz kapanma yönetimi
+│   │   ├── ingestion/          # PDF upload & live SSE paper pool sidebar
+│   │   ├── graph-map/          # Tab 1: React Flow + Dagre + Contradiction Comparison
+│   │   ├── scale-matrix/       # Tab 2: TanStack Table Scale & Method Matrix
+│   │   └── draft-critic/       # Tab 3: Markdown editor, style profile & evidence critic
+│   ├── i18n/                   # Type-safe EN / TR dictionaries and formatting helpers
+│   ├── stores/                 # Cross-tab Zustand workspace store
+│   └── types/                  # TypeScript types aligned 1:1 with SCHEMA_AND_CONTRACTS.md
+├── src-tauri/                  # Tauri v2 Rust sidecar launcher & clean shutdown handler
 ├── .env.example
 ├── .gitignore
 ├── LICENSE
+├── README.md
+├── README.tr.md
 └── package.json
 ```
 
 ---
 
-## Mimari ve Geliştirme Notu (`.agent_state/`)
+## Architecture & Development Protocol (`.agent_state/`)
 
-Bu proje çoklu-ajan / model-bağımsız geliştirme protokolüyle geliştirilmiştir. Tüm SQLite DDL şemaları, LanceDB vektör tabloları, Pydantic v2 modelleri, FastAPI `/api/v1` uçları ve TypeScript tipleri [`.agent_state/SCHEMA_AND_CONTRACTS.md`](.agent_state/SCHEMA_AND_CONTRACTS.md) içinde tek hakikat kaynağı olarak tutulur; mimari kararlar ise [`.agent_state/DECISION_LOG.md`](.agent_state/DECISION_LOG.md) dosyasında belgelenmiştir.
+This repository follows a multi-agent, contract-first engineering workflow. SQLite DDL tables, LanceDB collections, Pydantic v2 schemas, `/api/v1` endpoints, and TypeScript interfaces are anchored in [`.agent_state/SCHEMA_AND_CONTRACTS.md`](.agent_state/SCHEMA_AND_CONTRACTS.md), with architectural choices tracked in [`.agent_state/DECISION_LOG.md`](.agent_state/DECISION_LOG.md).
 
 ---
 
-## Lisans
+## License
 
-Bu proje [MIT Lisansı](LICENSE) altında açık kaynak olarak sunulmaktadır.
+Released under the [MIT License](LICENSE).

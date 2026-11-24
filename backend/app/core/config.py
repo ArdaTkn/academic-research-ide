@@ -4,7 +4,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -61,6 +61,7 @@ class Settings(BaseSettings):
     embedding_base_url: str | None = None
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     embedding_dim: int = 384
+    ui_locale: Literal["en", "tr"] = "en"
 
     @property
     def sqlite_path(self) -> Path:
@@ -102,6 +103,7 @@ class Settings(BaseSettings):
             "embedding_base_url",
             "embedding_model",
             "embedding_dim",
+            "ui_locale",
         }
         for key, value in raw.items():
             if key in allowed and value is not None:
@@ -118,6 +120,7 @@ class Settings(BaseSettings):
             "embedding_base_url",
             "embedding_model",
             "embedding_dim",
+            "ui_locale",
         }
         existing: dict[str, Any] = {}
         if self.config_file.exists():
@@ -149,6 +152,7 @@ class Settings(BaseSettings):
             "embedding_base_url": self.embedding_base_url,
             "embedding_model": self.embedding_model,
             "embedding_dim": self.embedding_dim,
+            "ui_locale": self.ui_locale,
             "has_api_key": bool(self.llm_api_key),
             "llm_api_key_masked": masked_key,
         }

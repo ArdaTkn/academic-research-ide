@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
 
-from app.api.deps import get_graph_service, get_repo
+from app.api.deps import get_graph_service, get_repo, get_request_locale
+from app.core.i18n import Locale
 from app.db.sqlite import ResearchRepository
 from app.models.schemas import (
     ContradictionCluster,
@@ -24,6 +25,7 @@ def get_graph(
     year_from: int | None = Query(default=None, ge=1800, le=2100),
     year_to: int | None = Query(default=None, ge=1800, le=2100),
     variable_ids: list[str] | None = Query(default=None),
+    locale: Locale = Depends(get_request_locale),
     graph_service: GraphService = Depends(get_graph_service),
 ) -> GraphResponse:
     return graph_service.build_graph(
@@ -32,6 +34,7 @@ def get_graph(
         year_from=year_from,
         year_to=year_to,
         variable_ids=variable_ids,
+        locale=locale,
     )
 
 
@@ -39,9 +42,10 @@ def get_graph(
 def get_graph_gaps(
     limit: int = Query(default=20, ge=1, le=200),
     min_gap_score: float = Query(default=0.0, ge=0.0, le=1.0),
+    locale: Locale = Depends(get_request_locale),
     graph_service: GraphService = Depends(get_graph_service),
 ) -> list[ResearchGap]:
-    return graph_service.compute_research_gaps(limit=limit, min_gap_score=min_gap_score)
+    return graph_service.compute_research_gaps(limit=limit, min_gap_score=min_gap_score, locale=locale)
 
 
 @router.get("/graph/contradictions", response_model=list[ContradictionCluster])

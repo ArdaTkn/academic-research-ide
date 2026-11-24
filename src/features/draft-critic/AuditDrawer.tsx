@@ -12,39 +12,40 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useState } from "react";
+import { useI18n, type TranslationKey } from "@/i18n";
 import { useWorkspaceStore } from "@/stores/useWorkspaceStore";
 import type { AuditFinding, AuditFindingType, AuditOverallStatus, AuditResult } from "@/types/contracts";
 
-const STATUS_STYLE: Record<AuditOverallStatus, { label: string; cls: string }> = {
-  supported: { label: "Destekleniyor", cls: "border-emerald-200 bg-emerald-50 text-emerald-800" },
-  warning: { label: "Uyarı / İncele", cls: "border-amber-200 bg-amber-50 text-amber-800" },
-  contradicted: { label: "Çelişki Saptandı", cls: "border-rose-200 bg-rose-50 text-rose-800" },
-  unsupported: { label: "Havuzda Desteksiz", cls: "border-orange-200 bg-orange-50 text-orange-800" },
+const STATUS_STYLE: Record<AuditOverallStatus, { key: TranslationKey; cls: string }> = {
+  supported: { key: "audit.status.supported", cls: "border-emerald-200 bg-emerald-50 text-emerald-800" },
+  warning: { key: "audit.status.warning", cls: "border-amber-200 bg-amber-50 text-amber-800" },
+  contradicted: { key: "audit.status.contradicted", cls: "border-rose-200 bg-rose-50 text-rose-800" },
+  unsupported: { key: "audit.status.unsupported", cls: "border-orange-200 bg-orange-50 text-orange-800" },
 };
 
-const FINDING_META: Record<AuditFindingType, { label: string; border: string; badge: string }> = {
+const FINDING_META: Record<AuditFindingType, { key: TranslationKey; border: string; badge: string }> = {
   contradiction: {
-    label: "Çelişki",
+    key: "audit.finding.contradiction",
     border: "border-l-rose-500",
     badge: "bg-rose-50 text-rose-800 border-rose-200",
   },
   unsupported_claim: {
-    label: "Desteksiz İddia",
+    key: "audit.finding.unsupported_claim",
     border: "border-l-orange-500",
     badge: "bg-orange-50 text-orange-800 border-orange-200",
   },
   missing_citation: {
-    label: "Eksik Atıf",
+    key: "audit.finding.missing_citation",
     border: "border-l-amber-500",
     badge: "bg-amber-50 text-amber-800 border-amber-200",
   },
   supporting_evidence: {
-    label: "Destekleyici Kanıt",
+    key: "audit.finding.supporting_evidence",
     border: "border-l-emerald-500",
     badge: "bg-emerald-50 text-emerald-800 border-emerald-200",
   },
   style_deviation: {
-    label: "Stil Sapması",
+    key: "audit.finding.style_deviation",
     border: "border-l-indigo-500",
     badge: "bg-indigo-50 text-indigo-800 border-indigo-200",
   },
@@ -69,6 +70,7 @@ export function AuditDrawer({
   onAudit,
   onDismissFinding,
 }: AuditDrawerProps) {
+  const { t } = useI18n();
   const focusPaperDetail = useWorkspaceStore((s) => s.focusPaperDetail);
   const [showDismissed, setShowDismissed] = useState(false);
 
@@ -83,10 +85,10 @@ export function AuditDrawer({
         <div className="flex items-center justify-between gap-2">
           <div>
             <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Kanıt & Çelişki Denetçisi
+              {t("audit.title")}
             </h2>
             <p className="mt-0.5 text-[11px] text-slate-500 tabular-nums">
-              Seçili Paragraf: P{activeParagraphIndex + 1}
+              {t("audit.selectedParagraph", { index: activeParagraphIndex + 1 })}
             </p>
           </div>
 
@@ -97,7 +99,7 @@ export function AuditDrawer({
             className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white shadow-2xs hover:bg-indigo-700 disabled:opacity-50"
           >
             {isAuditing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-            <span>{auditResult ? "Yeniden Denetle" : "Denetle"}</span>
+            <span>{auditResult ? t("audit.reaudit") : t("audit.audit")}</span>
           </button>
         </div>
       </div>
@@ -112,20 +114,18 @@ export function AuditDrawer({
 
         {!activeParagraphText.trim() ? (
           <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-xs text-slate-500">
-            Denetim için soldaki editöre bir akademik paragraf yazın veya paragraf seçin.
+            {t("audit.emptyEditor")}
           </div>
         ) : !auditResult ? (
           <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-xs text-slate-500">
             <ShieldAlert className="mx-auto mb-2 h-7 w-7 text-slate-300" />
-            <p className="font-medium text-slate-700">P{activeParagraphIndex + 1} henüz denetlenmedi</p>
-            <p className="mt-1">
-              Yerel makale havuzu (SQLite + LanceDB) ve aktif stil profilinizle çapraz kontrol için{" "}
-              <strong>Denetle</strong> butonuna tıklayın.
+            <p className="font-medium text-slate-700">
+              {t("audit.notAuditedTitle", { index: activeParagraphIndex + 1 })}
             </p>
+            <p className="mt-1">{t("audit.notAuditedSubtitle")}</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Özet Kartı */}
             <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-xs">
               <div className="flex items-center justify-between gap-2">
                 <span
@@ -138,20 +138,20 @@ export function AuditDrawer({
                   ) : (
                     <AlertCircle className="h-3.5 w-3.5" />
                   )}
-                  {STATUS_STYLE[auditResult.overall_status].label}
+                  {t(STATUS_STYLE[auditResult.overall_status].key)}
                 </span>
                 <span className="font-mono text-[10px] text-slate-400">{auditResult.model_used}</span>
               </div>
 
               <div className="mt-2.5 grid grid-cols-2 gap-2 text-[11px] tabular-nums">
                 <div className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5">
-                  <span className="text-slate-500">Kanıt Kapsamı:</span>{" "}
+                  <span className="text-slate-500">{t("audit.coverage")}</span>{" "}
                   <strong className="text-slate-900">
                     {Math.round(auditResult.evidence_coverage_score * 100)}%
                   </strong>
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5">
-                  <span className="text-slate-500">Stil Uyumu:</span>{" "}
+                  <span className="text-slate-500">{t("audit.styleFit")}</span>{" "}
                   <strong className="text-slate-900">
                     {Math.round(auditResult.style_alignment_score * 100)}%
                   </strong>
@@ -161,10 +161,9 @@ export function AuditDrawer({
               <p className="mt-2 text-[11px] leading-relaxed text-slate-600">{auditResult.summary}</p>
             </div>
 
-            {/* Bulgular Başlığı */}
             <div className="flex items-center justify-between text-[11px]">
               <span className="font-semibold uppercase tracking-wide text-slate-500">
-                Bulgular ({visibleFindings.length})
+                {t("audit.findingsHeading", { count: visibleFindings.length })}
               </span>
               {dismissedCount > 0 && (
                 <button
@@ -173,7 +172,11 @@ export function AuditDrawer({
                   className="inline-flex items-center gap-1 text-slate-500 hover:text-slate-800"
                 >
                   {showDismissed ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                  <span>{showDismissed ? "Kapatılanları Gizle" : `Kapatılanlar (${dismissedCount})`}</span>
+                  <span>
+                    {showDismissed
+                      ? t("audit.hideDismissed")
+                      : t("audit.showDismissed", { count: dismissedCount })}
+                  </span>
                 </button>
               )}
             </div>
@@ -181,7 +184,7 @@ export function AuditDrawer({
             {visibleFindings.length === 0 ? (
               <div className="rounded-xl border border-slate-200 bg-emerald-50/40 p-4 text-center text-xs text-emerald-800">
                 <Sparkles className="mx-auto mb-1.5 h-5 w-5 text-emerald-600" />
-                Bu paragrafta açık uyarı veya çelişki bulunmuyor.
+                {t("audit.cleanParagraph")}
               </div>
             ) : (
               <div className="space-y-2.5">
@@ -196,11 +199,11 @@ export function AuditDrawer({
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className={`rounded border px-2 py-0.5 text-[10px] font-semibold ${meta.badge}`}>
-                          {meta.label}
+                          {t(meta.key)}
                         </span>
                         {finding.page_number !== null && (
                           <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700 tabular-nums">
-                            s. {finding.page_number}
+                            {t("common.pageShort", { page: finding.page_number })}
                           </span>
                         )}
                       </div>
@@ -232,10 +235,10 @@ export function AuditDrawer({
                             className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-700 hover:text-indigo-900"
                           >
                             <BookOpen className="h-3.5 w-3.5" />
-                            <span>Kaynak Makaleyi İncele</span>
+                            <span>{t("audit.inspectSourcePaper")}</span>
                           </button>
                         ) : (
-                          <span className="text-[10px] text-slate-400">Havuzda eşleşen makale yok</span>
+                          <span className="text-[10px] text-slate-400">{t("audit.noMatchingPaper")}</span>
                         )}
 
                         <button
@@ -243,7 +246,7 @@ export function AuditDrawer({
                           onClick={() => onDismissFinding(finding)}
                           className="rounded px-2 py-0.5 text-[11px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800"
                         >
-                          {finding.is_dismissed ? "Geri Al" : "Yoksay"}
+                          {finding.is_dismissed ? t("audit.restore") : t("audit.dismiss")}
                         </button>
                       </div>
                     </div>

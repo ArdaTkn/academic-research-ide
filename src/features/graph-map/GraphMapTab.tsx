@@ -26,6 +26,7 @@ import { ConceptNode, type ConceptFlowNode } from "@/features/graph-map/ConceptN
 import { ContradictionComparisonPanel } from "@/features/graph-map/ContradictionComparisonPanel";
 import { computeDagreLayout } from "@/features/graph-map/layout";
 import { VariableMergeModal } from "@/features/graph-map/VariableMergeModal";
+import { useI18n } from "@/i18n";
 import { useWorkspaceStore } from "@/stores/useWorkspaceStore";
 import type { RelationshipDirection } from "@/types/contracts";
 
@@ -48,6 +49,7 @@ const EDGE_SIGN: Record<RelationshipDirection, string> = {
 };
 
 export function GraphMapTab() {
+  const { t, locale, formatNumber } = useI18n();
   const graphFilters = useWorkspaceStore((s) => s.graphFilters);
   const setGraphFilters = useWorkspaceStore((s) => s.setGraphFilters);
   const resetGraphFilters = useWorkspaceStore((s) => s.resetGraphFilters);
@@ -66,6 +68,7 @@ export function GraphMapTab() {
   const graphQuery = useQuery({
     queryKey: [
       "graph",
+      locale,
       graphFilters.min_paper_count,
       graphFilters.direction,
       graphFilters.year_from,
@@ -128,7 +131,7 @@ export function GraphMapTab() {
       const isSelected = selectedEdgeKey === edge.edge_key;
       const stroke = edge.has_contradiction ? "#d97706" : EDGE_COLOR[edge.dominant_direction];
       const label = edge.has_contradiction
-        ? `⚡ Çelişki (${edge.total_studies})`
+        ? t("graph.edgeContradiction", { count: edge.total_studies })
         : `${EDGE_SIGN[edge.dominant_direction]} (${edge.total_studies})`;
 
       return {
@@ -168,7 +171,9 @@ export function GraphMapTab() {
         id: `gap::${gap.source_variable_id}::${gap.target_variable_id}`,
         source: gap.source_variable_id,
         target: gap.target_variable_id,
-        label: `Boşluk (${gap.gap_score.toFixed(2)})`,
+        label: t("graph.edgeGap", {
+          score: formatNumber(gap.gap_score, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        }),
         style: {
           stroke: "#0284c7",
           strokeWidth: isPairSelected ? 2.8 : 1.5,
@@ -181,7 +186,16 @@ export function GraphMapTab() {
     });
 
     return [...empirical, ...gapEdges];
-  }, [data, visibleGraphEdges, selectedEdgeKey, graphFilters.showGaps, graphFilters.onlyContradictions, selectedGapPair]);
+  }, [
+    data,
+    visibleGraphEdges,
+    selectedEdgeKey,
+    graphFilters.showGaps,
+    graphFilters.onlyContradictions,
+    selectedGapPair,
+    t,
+    formatNumber,
+  ]);
 
   const selectedNode = useMemo(
     () => data?.nodes.find((n) => n.variable_id === selectedVariableId) ?? null,
@@ -221,19 +235,16 @@ export function GraphMapTab() {
     graphQuery.error instanceof ApiClientError
       ? `${graphQuery.error.error_code}: ${graphQuery.error.message}`
       : graphQuery.isError
-        ? "Kavram grafiği verileri yüklenemedi."
+        ? t("graph.loadFailed")
         : null;
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-slate-50">
-      {/* Üst Kontrol & Filtre Çubuğu */}
       <div className="border-b border-slate-200 bg-white px-5 py-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-base font-semibold text-slate-900">Kavram, Boşluk & Çelişki Haritası</h1>
-            <p className="text-xs text-slate-500">
-              Değişken ilişkilerini (+, −, n.s.), araştırma boşluklarını ve zıt bulgulu makaleleri inceleyin.
-            </p>
+            <h1 className="text-base font-semibold text-slate-900">{t("graph.title")}</h1>
+            <p className="text-xs text-slate-500">{t("graph.subtitle")}</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -244,7 +255,7 @@ export function GraphMapTab() {
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
             >
               <Merge className="h-3.5 w-3.5 text-indigo-600" />
-              <span>Değişken Birleştir</span>
+              <span>{t("graph.mergeVariables")}</span>
             </button>
 
             <button
@@ -255,19 +266,24 @@ export function GraphMapTab() {
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
             >
               <Compass className="h-3.5 w-3.5 text-slate-500" />
-              <span>Düzen: {graphFilters.layoutDirection === "LR" ? "Yatay" : "Dikey"}</span>
+              <span>
+                {t("graph.layoutLabel")}{" "}
+                {graphFilters.layoutDirection === "LR"
+                  ? t("graph.layoutHorizontal")
+                  : t("graph.layoutVertical")}
+              </span>
             </button>
           </div>
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2.5 text-xs">
           <label className="inline-flex items-center gap-1.5 text-slate-600">
-            <span>Min. Makale:</span>
+            <span>{t("graph.minPapers")}</span>
             <input
               type="number"
               min={1}
               max={50}
-              aria-label="Minimum makale sayısı"
+              aria-label={t("graph.minPapersAria")}
               value={graphFilters.min_paper_count}
               onChange={(e) =>
                 setGraphFilters({ min_paper_count: Math.max(1, Number.parseInt(e.target.value || "1", 10)) })
@@ -277,7 +293,7 @@ export function GraphMapTab() {
           </label>
 
           <select
-            aria-label="İlişki yönü filtresi"
+            aria-label={t("graph.directionAria")}
             value={graphFilters.direction ?? ""}
             onChange={(e) =>
               setGraphFilters({
@@ -286,20 +302,20 @@ export function GraphMapTab() {
             }
             className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-slate-800"
           >
-            <option value="">Tüm Yönler</option>
-            <option value="positive">Pozitif (+)</option>
-            <option value="negative">Negatif (−)</option>
-            <option value="insignificant">Anlamsız (n.s.)</option>
-            <option value="mixed">Karışık</option>
-            <option value="curvilinear">Eğrisel</option>
+            <option value="">{t("graph.allDirections")}</option>
+            <option value="positive">{t("graph.dir.positive")}</option>
+            <option value="negative">{t("graph.dir.negative")}</option>
+            <option value="insignificant">{t("graph.dir.insignificant")}</option>
+            <option value="mixed">{t("graph.dir.mixed")}</option>
+            <option value="curvilinear">{t("graph.dir.curvilinear")}</option>
           </select>
 
           <div className="flex items-center gap-1 text-slate-600">
-            <span>Yıl:</span>
+            <span>{t("matrix.yearLabel")}</span>
             <input
               type="number"
-              aria-label="Grafik başlangıç yılı"
-              placeholder="Min"
+              aria-label={t("graph.yearFromAria")}
+              placeholder={t("matrix.yearMinPlaceholder")}
               value={graphFilters.year_from ?? ""}
               onChange={(e) =>
                 setGraphFilters({ year_from: e.target.value === "" ? null : Number.parseInt(e.target.value, 10) })
@@ -309,8 +325,8 @@ export function GraphMapTab() {
             <span>–</span>
             <input
               type="number"
-              aria-label="Grafik bitiş yılı"
-              placeholder="Max"
+              aria-label={t("graph.yearToAria")}
+              placeholder={t("matrix.yearMaxPlaceholder")}
               value={graphFilters.year_to ?? ""}
               onChange={(e) =>
                 setGraphFilters({ year_to: e.target.value === "" ? null : Number.parseInt(e.target.value, 10) })
@@ -329,7 +345,7 @@ export function GraphMapTab() {
             }`}
           >
             <Sparkles className="h-3 w-3" />
-            <span>Boşlukları Göster</span>
+            <span>{t("graph.showGaps")}</span>
           </button>
 
           <button
@@ -342,7 +358,7 @@ export function GraphMapTab() {
             }`}
           >
             <GitCompareArrows className="h-3 w-3" />
-            <span>Yalnızca Çelişkiler</span>
+            <span>{t("graph.onlyContradictions")}</span>
           </button>
 
           <button
@@ -351,7 +367,7 @@ export function GraphMapTab() {
             className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-slate-600 hover:bg-slate-50"
           >
             <FilterX className="h-3 w-3" />
-            <span>Sıfırla</span>
+            <span>{t("common.reset")}</span>
           </button>
         </div>
       </div>
@@ -363,23 +379,18 @@ export function GraphMapTab() {
         </div>
       )}
 
-      {/* Ana Bölünmüş Çalışma Alanı */}
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        {/* Sol/Orta Etkileşimli Grafik Tuvali */}
         <div className="relative min-w-0 flex-1">
           {graphQuery.isLoading ? (
             <div className="flex h-full items-center justify-center text-sm text-slate-500">
               <Loader2 className="mr-2 h-5 w-5 animate-spin text-indigo-600" />
-              Kavram haritası hesaplanıyor...
+              {t("graph.loading")}
             </div>
           ) : !data || data.nodes.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center p-8 text-center">
               <GitFork className="mb-3 h-10 w-10 text-slate-300" />
-              <div className="text-sm font-medium text-slate-800">Grafikte görüntülenecek kavram bulunamadı</div>
-              <p className="mt-1 max-w-md text-xs text-slate-500">
-                Sol panelden PDF makaleler yükledikçe değişkenler, yönlü ilişkiler, araştırma boşlukları ve zıt bulgular
-                otomatik olarak burada haritalanır.
-              </p>
+              <div className="text-sm font-medium text-slate-800">{t("graph.emptyTitle")}</div>
+              <p className="mt-1 max-w-md text-xs text-slate-500">{t("graph.emptySubtitle")}</p>
             </div>
           ) : (
             <>
@@ -403,29 +414,27 @@ export function GraphMapTab() {
                 />
               </ReactFlow>
 
-              {/* Alt Renk Göstergesi */}
               <div className="pointer-events-none absolute bottom-3 left-3 flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white/95 px-3 py-1.5 text-[11px] text-slate-600 shadow-xs">
                 <span className="inline-flex items-center gap-1">
-                  <span className="h-2 w-3 rounded-xs bg-emerald-600" /> Pozitif (+)
+                  <span className="h-2 w-3 rounded-xs bg-emerald-600" /> {t("graph.legend.positive")}
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <span className="h-2 w-3 rounded-xs bg-rose-600" /> Negatif (−)
+                  <span className="h-2 w-3 rounded-xs bg-rose-600" /> {t("graph.legend.negative")}
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <span className="h-2 w-3 rounded-xs bg-slate-500" /> Anlamsız
+                  <span className="h-2 w-3 rounded-xs bg-slate-500" /> {t("graph.legend.insignificant")}
                 </span>
                 <span className="inline-flex items-center gap-1 font-medium text-amber-800">
-                  <span className="h-2 w-3 rounded-xs bg-amber-500" /> Çelişkili
+                  <span className="h-2 w-3 rounded-xs bg-amber-500" /> {t("graph.legend.contradiction")}
                 </span>
                 <span className="inline-flex items-center gap-1 font-medium text-sky-800">
-                  <span className="h-2 w-3 rounded-xs bg-sky-600" /> Boşluk Adayı
+                  <span className="h-2 w-3 rounded-xs bg-sky-600" /> {t("graph.legend.gap")}
                 </span>
               </div>
             </>
           )}
         </div>
 
-        {/* Sağ Analiz & Kıyaslama Çekmecesi */}
         <aside className="flex w-[430px] shrink-0 flex-col border-l border-slate-200 bg-white">
           <div className="grid grid-cols-3 border-b border-slate-200 bg-slate-50 p-1 text-xs font-medium">
             <button
@@ -437,7 +446,7 @@ export function GraphMapTab() {
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              Çelişkiler ({data?.contradictions.length ?? 0})
+              {t("graph.tab.contradictions", { count: data?.contradictions.length ?? 0 })}
             </button>
             <button
               type="button"
@@ -448,7 +457,7 @@ export function GraphMapTab() {
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              Boşluklar ({data?.gaps.length ?? 0})
+              {t("graph.tab.gaps", { count: data?.gaps.length ?? 0 })}
             </button>
             <button
               type="button"
@@ -459,7 +468,7 @@ export function GraphMapTab() {
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              Kavram Detayı
+              {t("graph.tab.node")}
             </button>
           </div>
 
@@ -468,13 +477,13 @@ export function GraphMapTab() {
               <div className="space-y-4">
                 {!data || data.contradictions.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-xs text-slate-500">
-                    Mevcut filtrelerde zıt yönlü bulgu içeren ilişki çifti saptanmadı.
+                    {t("graph.contradictionsEmpty")}
                   </div>
                 ) : (
                   <>
                     <div className="space-y-1.5">
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                        Çelişki Kümeleri
+                        {t("graph.contradictionClusters")}
                       </div>
                       {data.contradictions.map((cluster) => {
                         const active = selectedContradiction?.edge_key === cluster.edge_key;
@@ -493,7 +502,7 @@ export function GraphMapTab() {
                               {cluster.source_label} → {cluster.target_label}
                             </span>
                             <span className="ml-2 shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-900 tabular-nums">
-                              {cluster.opposing_sides.length} bulgu
+                              {t("graph.findingsCount", { count: cluster.opposing_sides.length })}
                             </span>
                           </button>
                         );
@@ -510,7 +519,7 @@ export function GraphMapTab() {
               <div className="space-y-2.5">
                 {!data || data.gaps.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-xs text-slate-500">
-                    Ortak komşulara sahip olup doğrudan test edilmemiş kavram çifti henüz oluşmadı.
+                    {t("graph.gapsEmpty")}
                   </div>
                 ) : (
                   data.gaps.map((gap) => {
@@ -534,12 +543,14 @@ export function GraphMapTab() {
                             {gap.source_label} ↔ {gap.target_label}
                           </span>
                           <span className="shrink-0 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-semibold text-sky-800 tabular-nums">
-                            Boşluk: {gap.gap_score.toFixed(2)}
+                            {t("graph.gapScoreBadge", {
+                              score: formatNumber(gap.gap_score, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                            })}
                           </span>
                         </div>
                         <div className="mt-1.5 flex gap-3 text-[11px] text-slate-600 tabular-nums">
-                          <span>Ortak komşu: {gap.co_occurrence_neighbors}</span>
-                          <span>Doğrudan çalışma: {gap.direct_study_count}</span>
+                          <span>{t("graph.gapNeighbors", { count: gap.co_occurrence_neighbors })}</span>
+                          <span>{t("graph.gapDirectStudies", { count: gap.direct_study_count })}</span>
                         </div>
                         <p className="mt-1.5 text-[11px] leading-relaxed text-slate-600">{gap.rationale}</p>
                       </button>
@@ -553,7 +564,7 @@ export function GraphMapTab() {
               <div>
                 {!selectedNode ? (
                   <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-xs text-slate-500">
-                    Detaylarını görmek ve Ölçek Matrisine geçmek için haritadan bir kavram düğümüne tıklayın.
+                    {t("graph.nodeEmpty")}
                   </div>
                 ) : (
                   <div className="space-y-4 text-xs">
@@ -563,12 +574,17 @@ export function GraphMapTab() {
 
                       <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] tabular-nums">
                         <div className="rounded border border-slate-200 bg-white px-2.5 py-1.5">
-                          <span className="text-slate-500">Makale Sayısı:</span>{" "}
-                          <strong className="text-slate-900">{selectedNode.paper_count}</strong>
+                          <span className="text-slate-500">{t("graph.nodePaperCount")}</span>{" "}
+                          <strong className="text-slate-900">{formatNumber(selectedNode.paper_count)}</strong>
                         </div>
                         <div className="rounded border border-slate-200 bg-white px-2.5 py-1.5">
-                          <span className="text-slate-500">Merkezilik:</span>{" "}
-                          <strong className="text-slate-900">{selectedNode.degree_centrality.toFixed(2)}</strong>
+                          <span className="text-slate-500">{t("graph.nodeCentrality")}</span>{" "}
+                          <strong className="text-slate-900">
+                            {formatNumber(selectedNode.degree_centrality, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </strong>
                         </div>
                       </div>
 
@@ -578,7 +594,7 @@ export function GraphMapTab() {
                             key={role}
                             className="rounded border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-800"
                           >
-                            {role}
+                            {t(`paperDrawer.role.${role}`)}
                           </span>
                         ))}
                       </div>
@@ -591,7 +607,7 @@ export function GraphMapTab() {
                         className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-700"
                       >
                         <Table2 className="h-3.5 w-3.5" />
-                        <span>Ölçek Matrisinde Filtrele</span>
+                        <span>{t("graph.filterInMatrix")}</span>
                       </button>
 
                       <button
@@ -601,7 +617,7 @@ export function GraphMapTab() {
                         className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
                       >
                         <Merge className="h-3.5 w-3.5" />
-                        <span>Bu Değişkene Birleştir</span>
+                        <span>{t("graph.mergeIntoThis")}</span>
                       </button>
                     </div>
                   </div>

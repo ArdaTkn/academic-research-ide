@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import Request
 
 from app.core.config import Settings
+from app.core.i18n import Locale, resolve_locale
 from app.db.sqlite import ResearchRepository, SQLiteDatabase
 from app.db.vector_store import EmbeddingProvider, VectorStore
 from app.pipeline.worker import IngestionManager
@@ -45,3 +46,13 @@ def get_style_service(request: Request) -> StyleService:
 
 def get_critic_service(request: Request) -> CriticService:
     return request.app.state.critic_service  # type: ignore[no-any-return]
+
+
+def get_request_locale(request: Request) -> Locale:
+    settings = getattr(request.app.state, "settings", None)
+    default_locale: Locale = getattr(settings, "ui_locale", "en") if settings else "en"
+    return resolve_locale(
+        explicit=request.query_params.get("locale"),
+        accept_language=request.headers.get("Accept-Language"),
+        default=default_locale,
+    )

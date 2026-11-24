@@ -67,6 +67,7 @@ const SAMPLE_MATRIX_RESPONSE: ScaleMatrixResponse = {
 describe("ScaleMatrixTab", () => {
   beforeEach(() => {
     useWorkspaceStore.setState({
+      locale: "en",
       matrixFilters: { ...DEFAULT_MATRIX_FILTERS },
       selectedPaperId: null,
       selectedScaleId: null,
@@ -109,7 +110,7 @@ describe("ScaleMatrixTab", () => {
     expect(await screen.findByText("Utrecht Work Engagement Scale")).toBeInTheDocument();
     expect(screen.getByText("Brief Burnout Checklist")).toBeInTheDocument();
     expect(screen.getByText("0.89")).toBeInTheDocument();
-    expect(screen.getByText("s. 4")).toBeInTheDocument();
+    expect(screen.getByText("p. 4")).toBeInTheDocument();
     expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(4);
     expect(screen.queryByText("NaN")).not.toBeInTheDocument();
 
@@ -166,7 +167,7 @@ describe("ScaleMatrixTab", () => {
       expect(requestedUrls.some((u) => u.includes("/matrix/scales") && u.includes("min_alpha=0.8"))).toBe(true);
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "CSV İndir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
     await waitFor(() => {
       expect(
         requestedUrls.some((u) => u.includes("/matrix/export") && u.includes("format=csv") && u.includes("min_alpha=0.8"))

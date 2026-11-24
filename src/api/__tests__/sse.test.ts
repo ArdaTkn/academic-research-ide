@@ -131,7 +131,7 @@ describe("subscribeToJob SSE resilience", () => {
     await vi.waitFor(() => expect(completed).toHaveLength(1));
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.stringMatching(/\/jobs\/job-2$/),
-      undefined
+      expect.objectContaining({ headers: expect.any(Headers) })
     );
 
     unsub();

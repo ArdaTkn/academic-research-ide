@@ -3,7 +3,35 @@ import type {
   IngestionJob,
   RelationshipDirection,
   ScaleMatrixFilter,
+  UiLocale,
 } from "@/types/contracts";
+
+export const LOCALE_STORAGE_KEY = "academic_research_ide.locale";
+
+function getInitialLocale(): UiLocale {
+  if (typeof window !== "undefined") {
+    try {
+      const saved = window.localStorage.getItem(LOCALE_STORAGE_KEY);
+      if (saved === "tr" || saved === "en") return saved;
+    } catch {
+      // Ignore storage access restrictions
+    }
+  }
+  return "en";
+}
+
+function persistLocale(locale: UiLocale): void {
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+    } catch {
+      // Ignore storage access restrictions
+    }
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = locale;
+    }
+  }
+}
 
 export type WorkspaceTabId = "graph" | "matrix" | "draft";
 export type GraphInspectorTab = "contradictions" | "gaps" | "node";
@@ -44,6 +72,7 @@ export const DEFAULT_MATRIX_FILTERS: ScaleMatrixFilter = {
 };
 
 interface WorkspaceState {
+  locale: UiLocale;
   activeTab: WorkspaceTabId;
   selectedPaperId: string | null;
   selectedVariableId: string | null;
@@ -59,6 +88,7 @@ interface WorkspaceState {
   isSettingsOpen: boolean;
   isSidebarCollapsed: boolean;
 
+  setLocale: (locale: UiLocale) => void;
   setActiveTab: (tab: WorkspaceTabId) => void;
   setSelectedPaperId: (paperId: string | null) => void;
   setSelectedVariableId: (variableId: string | null) => void;
@@ -82,6 +112,7 @@ interface WorkspaceState {
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set) => ({
+  locale: getInitialLocale(),
   activeTab: "matrix",
   selectedPaperId: null,
   selectedVariableId: null,
@@ -97,6 +128,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   isSettingsOpen: false,
   isSidebarCollapsed: false,
 
+  setLocale: (locale) => {
+    persistLocale(locale);
+    set({ locale });
+  },
   setActiveTab: (activeTab) => set({ activeTab }),
   setSelectedPaperId: (selectedPaperId) => set({ selectedPaperId }),
   setSelectedVariableId: (selectedVariableId) => set({ selectedVariableId }),

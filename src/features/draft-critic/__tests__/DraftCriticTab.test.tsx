@@ -70,6 +70,7 @@ describe("paragraphs utilities", () => {
 describe("DraftCriticTab", () => {
   beforeEach(() => {
     useWorkspaceStore.setState({
+      locale: "en",
       activeTab: "draft",
       selectedDraftId: null,
       selectedPaperId: null,
@@ -129,15 +130,15 @@ describe("DraftCriticTab", () => {
     renderWithQuery(<DraftCriticTab />);
 
     expect(await screen.findByDisplayValue("Literature Review")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Paragrafı Denetle" }));
+    fireEvent.click(screen.getByRole("button", { name: "Audit Paragraph" }));
 
-    expect(await screen.findByText("Çelişki Saptandı")).toBeInTheDocument();
-    expect(screen.getByText("s. 2")).toBeInTheDocument();
+    expect(await screen.findByText("Contradiction Detected")).toBeInTheDocument();
+    expect(screen.getByText("p. 2")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Kaynak Makaleyi İncele" }));
+    fireEvent.click(screen.getByRole("button", { name: "Inspect Source Paper" }));
     expect(useWorkspaceStore.getState().selectedPaperId).toBe("p-99");
 
-    fireEvent.click(screen.getByRole("button", { name: "Yoksay" }));
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
     await waitFor(() => expect(dismissed).toBe(true));
 
     fetchSpy.mockRestore();
@@ -194,14 +195,14 @@ describe("DraftCriticTab", () => {
     renderWithQuery(<DraftCriticTab />);
     await screen.findByDisplayValue("Literature Review");
 
-    fireEvent.click(screen.getByRole("button", { name: /Stil:/ }));
-    expect(await screen.findByText("Akademik Stil Profilleri")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Style:/ }));
+    expect(await screen.findByText("Academic Style Profiles")).toBeInTheDocument();
 
-    fireEvent.change(screen.getByPlaceholderText(/Q1 Makale Üslubum/), { target: { value: "My APA Style" } });
-    fireEvent.change(screen.getByPlaceholderText(/1–3 akademik paragrafı/), {
+    fireEvent.change(screen.getByPlaceholderText(/Q1 Journal Style/), { target: { value: "My APA Style" } });
+    fireEvent.change(screen.getByPlaceholderText(/1–3 paragraphs/), {
       target: { value: "However, empirical evidence may indicate a positive link." },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Profil Çıkar & Aktifleştir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Extract & Activate Profile" }));
 
     await waitFor(() => {
       expect(fetchSpy).toHaveBeenCalledWith(

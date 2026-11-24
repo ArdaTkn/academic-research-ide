@@ -13,28 +13,29 @@ import {
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import { apiClient, ApiClientError } from "@/api/client";
 import { subscribeToJob } from "@/api/sse";
+import { useI18n, type TranslationKey } from "@/i18n";
 import { useWorkspaceStore } from "@/stores/useWorkspaceStore";
 import type { IngestionJob, IngestionStatus } from "@/types/contracts";
 
-const STATUS_BADGE: Record<IngestionStatus, { label: string; cls: string }> = {
-  completed: { label: "Hazır", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  processing: { label: "İşleniyor", cls: "bg-indigo-50 text-indigo-700 border-indigo-200" },
-  pending: { label: "Bekliyor", cls: "bg-slate-100 text-slate-700 border-slate-200" },
-  partial: { label: "Kısmi", cls: "bg-amber-50 text-amber-700 border-amber-200" },
-  failed: { label: "Hata", cls: "bg-rose-50 text-rose-700 border-rose-200" },
+const STATUS_STYLE: Record<IngestionStatus, { key: TranslationKey; cls: string }> = {
+  completed: { key: "sidebar.status.completed", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  processing: { key: "sidebar.status.processing", cls: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+  pending: { key: "sidebar.status.pending", cls: "bg-slate-100 text-slate-700 border-slate-200" },
+  partial: { key: "sidebar.status.partial", cls: "bg-amber-50 text-amber-700 border-amber-200" },
+  failed: { key: "sidebar.status.failed", cls: "bg-rose-50 text-rose-700 border-rose-200" },
 };
 
-const JOB_LABELS: Record<IngestionJob["status"], string> = {
-  queued: "Kuyrukta",
-  extracting_text: "PDF Metni Çıkarılıyor",
-  parsing_llm: "LLM Yapılandırılıyor",
-  indexing_vectors: "Vektör İndeksleniyor",
-  completed: "Tamamlandı",
-  failed: "Başarısız",
+const JOB_LABEL_KEYS: Record<IngestionJob["status"], TranslationKey> = {
+  queued: "sidebar.job.queued",
+  extracting_text: "sidebar.job.extracting_text",
+  parsing_llm: "sidebar.job.parsing_llm",
+  indexing_vectors: "sidebar.job.indexing_vectors",
+  completed: "sidebar.job.completed",
+  failed: "sidebar.job.failed",
 };
 
-function parseJobError(errorDetail: string | null): string {
-  if (!errorDetail) return "İşlem başarısız oldu.";
+function parseJobError(errorDetail: string | null, fallbackMessage: string): string {
+  if (!errorDetail) return fallbackMessage;
   try {
     const parsed = JSON.parse(errorDetail) as { error_code?: string; message?: string };
     if (parsed.error_code && parsed.message) {
@@ -47,6 +48,7 @@ function parseJobError(errorDetail: string | null): string {
 }
 
 export function IngestionSidebar() {
+  const { t, formatNumber } = useI18n();
   const queryClient = useQueryClient();
   const isCollapsed = useWorkspaceStore((s) => s.isSidebarCollapsed);
   const selectedPaperId = useWorkspaceStore((s) => s.selectedPaperId);
@@ -109,7 +111,7 @@ export function IngestionSidebar() {
     },
     onError: (err) => {
       setUploadError(
-        err instanceof ApiClientError ? `${err.error_code}: ${err.message}` : "PDF yükleme başlatılamadı."
+        err instanceof ApiClientError ? `${err.error_code}: ${err.message}` : t("sidebar.uploadStartFailed")
       );
     },
   });
@@ -124,7 +126,7 @@ export function IngestionSidebar() {
     },
     onError: (err) => {
       setUploadError(
-        err instanceof ApiClientError ? `${err.error_code}: ${err.message}` : "Yol üzerinden ekleme başarısız."
+        err instanceof ApiClientError ? `${err.error_code}: ${err.message}` : t("sidebar.pathIngestFailed")
       );
     },
   });
@@ -155,7 +157,7 @@ export function IngestionSidebar() {
     if (!fileList || fileList.length === 0) return;
     const pdfs = Array.from(fileList).filter((f) => f.name.toLowerCase().endsWith(".pdf"));
     if (pdfs.length === 0) {
-      setUploadError("Yalnızca .pdf uzantılı dosyalar yüklenebilir.");
+      setUploadError(t("sidebar.onlyPdfError"));
       return;
     }
     uploadMutation.mutate(pdfs);
@@ -183,15 +185,15 @@ export function IngestionSidebar() {
     <aside className="flex w-80 shrink-0 flex-col border-r border-slate-200 bg-white">
       <div className="border-b border-slate-200 p-3.5">
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-600">Makale Havuzu</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-600">{t("sidebar.title")}</h2>
           <button
             type="button"
             onClick={() => setShowPathInput((v) => !v)}
             className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-slate-600 hover:bg-slate-100"
-            title="Yerel PDF dosya yolundan içe aktar"
+            title={t("sidebar.addByPathTooltip")}
           >
             <FolderPlus className="h-3.5 w-3.5" />
-            <span>Yoldan Ekle</span>
+            <span>{t("sidebar.addByPath")}</span>
           </button>
         </div>
 
@@ -230,8 +232,8 @@ export function IngestionSidebar() {
           ) : (
             <FileUp className="mb-1.5 h-5 w-5 text-indigo-600" />
           )}
-          <span className="text-xs font-medium text-slate-800">PDF Sürükle-Bırak veya Seç</span>
-          <span className="mt-0.5 text-[11px] text-slate-500">Değişken, ölçek ve iddialar otomatik ayrıştırılır</span>
+          <span className="text-xs font-medium text-slate-800">{t("sidebar.dropTitle")}</span>
+          <span className="mt-0.5 text-[11px] text-slate-500">{t("sidebar.dropSubtitle")}</span>
         </div>
 
         {showPathInput && (
@@ -240,7 +242,7 @@ export function IngestionSidebar() {
               rows={2}
               value={localPathText}
               onChange={(e) => setLocalPathText(e.target.value)}
-              placeholder="Her satıra bir PDF dosya yolu yazın..."
+              placeholder={t("sidebar.pathPlaceholder")}
               className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 font-mono text-[11px] text-slate-800 focus:border-indigo-500 focus:outline-none"
             />
             <div className="flex justify-end gap-1.5">
@@ -249,7 +251,7 @@ export function IngestionSidebar() {
                 onClick={() => setShowPathInput(false)}
                 className="rounded px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-200"
               >
-                Vazgeç
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -257,7 +259,7 @@ export function IngestionSidebar() {
                 disabled={pathMutation.isPending}
                 className="rounded bg-indigo-600 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
               >
-                Başlat
+                {t("sidebar.start")}
               </button>
             </div>
           </div>
@@ -276,7 +278,7 @@ export function IngestionSidebar() {
       {jobsList.length > 0 && (
         <div className="max-h-48 space-y-2 overflow-y-auto border-b border-slate-200 bg-slate-50/70 p-3">
           <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-            Canlı Ayrıştırma Akışı ({jobsList.length})
+            {t("sidebar.liveStream", { count: jobsList.length })}
           </div>
           {jobsList.map((job) => {
             const fileName = job.file_path.split(/[/\\]/).pop() ?? job.file_path;
@@ -292,7 +294,7 @@ export function IngestionSidebar() {
                     type="button"
                     onClick={() => dismissJob(job.id)}
                     className="shrink-0 text-slate-400 hover:text-slate-600"
-                    title="Bildirimi Gizle"
+                    title={t("sidebar.dismissNotice")}
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -307,7 +309,7 @@ export function IngestionSidebar() {
                     ) : (
                       <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-600" />
                     )}
-                    {JOB_LABELS[job.status]}
+                    {t(JOB_LABEL_KEYS[job.status])}
                   </span>
                   <span className="tabular-nums text-slate-500">{job.progress_percent}%</span>
                 </div>
@@ -322,7 +324,9 @@ export function IngestionSidebar() {
                 </div>
 
                 {isFailed && job.error_detail && (
-                  <p className="mt-1.5 text-[11px] leading-snug text-rose-700">{parseJobError(job.error_detail)}</p>
+                  <p className="mt-1.5 text-[11px] leading-snug text-rose-700">
+                    {parseJobError(job.error_detail, t("sidebar.jobDefaultError"))}
+                  </p>
                 )}
               </div>
             );
@@ -337,7 +341,7 @@ export function IngestionSidebar() {
             type="text"
             value={paperSearch}
             onChange={(e) => setPaperSearch(e.target.value)}
-            placeholder="Makale veya yazar ara..."
+            placeholder={t("sidebar.searchPlaceholder")}
             className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 pl-8 pr-3 text-xs text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-none"
           />
         </div>
@@ -346,22 +350,22 @@ export function IngestionSidebar() {
       <div className="flex-1 overflow-y-auto p-2">
         {papersQuery.isLoading ? (
           <div className="flex items-center justify-center py-8 text-xs text-slate-500">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Makaleler yükleniyor...
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("sidebar.loadingPapers")}
           </div>
         ) : papersQuery.isError ? (
           <div className="m-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
             {papersQuery.error instanceof ApiClientError
               ? `${papersQuery.error.error_code}: ${papersQuery.error.message}`
-              : "Makale listesi alınamadı."}
+              : t("sidebar.loadFailed")}
           </div>
         ) : papers.length === 0 ? (
           <div className="px-3 py-8 text-center text-xs text-slate-500">
-            Havuzda henüz makale yok. Yukarıdan PDF yükleyerek başlayın.
+            {t("sidebar.emptyPool")}
           </div>
         ) : (
           <ul className="space-y-1.5">
             {papers.map((paper) => {
-              const badge = STATUS_BADGE[paper.ingestion_status];
+              const badge = STATUS_STYLE[paper.ingestion_status];
               const isSelected = selectedPaperId === paper.id;
               return (
                 <li
@@ -382,16 +386,18 @@ export function IngestionSidebar() {
                         {paper.title}
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
-                        <span>{paper.year ?? "—"}</span>
+                        <span>{paper.year ?? t("common.dash")}</span>
                         <span>·</span>
-                        <span className="tabular-nums">N={paper.sample_size ?? "—"}</span>
+                        <span className="tabular-nums">
+                          N={paper.sample_size !== null ? formatNumber(paper.sample_size) : t("common.dash")}
+                        </span>
                         <span>·</span>
-                        <span className="tabular-nums">{paper.page_count} s.</span>
+                        <span className="tabular-nums">{t("common.pageShort", { page: paper.page_count })}</span>
                       </div>
                     </button>
 
                     <span className={`shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-medium ${badge.cls}`}>
-                      {badge.label}
+                      {t(badge.key)}
                     </span>
                   </div>
 
@@ -401,20 +407,20 @@ export function IngestionSidebar() {
                       onClick={() => reprocessMutation.mutate(paper.id)}
                       disabled={reprocessMutation.isPending}
                       className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-slate-600 hover:bg-slate-200/70"
-                      title="Makaleyi Yeniden Ayrıştır"
+                      title={t("sidebar.reprocessTooltip")}
                     >
                       <RefreshCw className="h-3 w-3" />
-                      <span>Yenile</span>
+                      <span>{t("sidebar.reprocess")}</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => deleteMutation.mutate(paper.id)}
                       disabled={deleteMutation.isPending}
                       className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-rose-600 hover:bg-rose-50"
-                      title="Makaleyi Sil"
+                      title={t("sidebar.deleteTooltip")}
                     >
                       <Trash2 className="h-3 w-3" />
-                      <span>Sil</span>
+                      <span>{t("common.delete")}</span>
                     </button>
                   </div>
                 </li>

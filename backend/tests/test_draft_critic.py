@@ -174,7 +174,7 @@ def test_critic_contradiction_support_missing_citation_and_no_fabricated_sources
         assert contradictions[0]["quote_snippet"] == "Remote autonomy significantly increased employee engagement."
         assert any(f["finding_type"] == "style_deviation" for f in c_data["findings"])
 
-        # 2. Desteklenen ancak atıfsız cümle -> supporting_evidence + missing_citation
+        # 2. Desteklenen ancak atıfsız cümle -> supporting_evidence + missing_citation (default EN)
         support_res = client.post(
             f"/api/v1/drafts/{draft_id}/audit",
             json={
@@ -188,7 +188,21 @@ def test_critic_contradiction_support_missing_citation_and_no_fabricated_sources
         assert any(f["finding_type"] == "supporting_evidence" and f["page_number"] == 2 for f in s_data["findings"])
         missing_cites = [f for f in s_data["findings"] if f["finding_type"] == "missing_citation"]
         assert len(missing_cites) == 1
-        assert "Lovelace, 2024, s. 2" in (missing_cites[0]["suggestion"] or "")
+        assert "Lovelace, 2024, p. 2" in (missing_cites[0]["suggestion"] or "")
+
+        # Verify Turkish locale output on the same endpoint
+        support_tr = client.post(
+            f"/api/v1/drafts/{draft_id}/audit",
+            json={
+                "paragraph_index": 1,
+                "paragraph_text": "Remote autonomy increases employee engagement across software teams.",
+                "locale": "tr",
+            },
+        )
+        assert support_tr.status_code == 200
+        tr_missing = [f for f in support_tr.json()["findings"] if f["finding_type"] == "missing_citation"]
+        assert len(tr_missing) == 1
+        assert "Lovelace, 2024, s. 2" in (tr_missing[0]["suggestion"] or "")
 
         # 3. Havuzda karşılığı olmayan iddia -> ASLA uydurma kaynak/sayfa üretilmemeli
         unsupported_res = client.post(

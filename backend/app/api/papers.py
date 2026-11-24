@@ -7,9 +7,10 @@ from fastapi import APIRouter, Depends, Query, Request, UploadFile, status
 from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 
-from app.api.deps import get_ingestion_manager, get_repo, get_settings, get_vector_store
+from app.api.deps import get_ingestion_manager, get_repo, get_request_locale, get_settings, get_vector_store
 from app.core.config import Settings
 from app.core.errors import BadRequestError
+from app.core.i18n import Locale
 from app.db.sqlite import ResearchRepository
 from app.db.vector_store import VectorStore
 from app.models.schemas import (
@@ -30,6 +31,7 @@ router = APIRouter(tags=["papers"])
 async def ingest_papers(
     request: Request,
     settings: Settings = Depends(get_settings),
+    locale: Locale = Depends(get_request_locale),
     manager: IngestionManager = Depends(get_ingestion_manager),
 ) -> list[IngestionJob]:
     content_type = (request.headers.get("content-type") or "").lower()
@@ -67,7 +69,7 @@ async def ingest_papers(
             ) from exc
         paths_to_process = [Path(p) for p in parsed.file_paths]
 
-    jobs = [manager.enqueue_path(path) for path in paths_to_process]
+    jobs = [manager.enqueue_path(path, locale=locale) for path in paths_to_process]
     return jobs
 
 
@@ -125,8 +127,9 @@ def delete_paper(
 @router.post("/papers/{paper_id}/reprocess", response_model=IngestionJob, status_code=status.HTTP_202_ACCEPTED)
 def reprocess_paper(
     paper_id: str,
+    locale: Locale = Depends(get_request_locale),
     repo: ResearchRepository = Depends(get_repo),
     manager: IngestionManager = Depends(get_ingestion_manager),
 ) -> IngestionJob:
     paper = repo.get_paper(paper_id)
-    return manager.enqueue_path(Path(paper.file_path), reprocess_paper_id=paper.id)
+    return manager.enqueue_path(Path(paper.file_path), reprocess_paper_id=paper.id, locale=locale)

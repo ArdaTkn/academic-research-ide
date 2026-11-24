@@ -1,30 +1,31 @@
 import { ArrowRight, BookOpen, GitCompareArrows, Scale } from "lucide-react";
+import { useI18n, type TranslationKey } from "@/i18n";
 import { useWorkspaceStore } from "@/stores/useWorkspaceStore";
 import type { ContradictionCluster, ContradictionPaperSide, RelationshipDirection } from "@/types/contracts";
 
-const DIRECTION_STYLE: Record<RelationshipDirection, { label: string; badge: string; border: string }> = {
+const DIRECTION_STYLE: Record<RelationshipDirection, { key: TranslationKey; badge: string; border: string }> = {
   positive: {
-    label: "Pozitif (+)",
+    key: "graph.dir.positive",
     badge: "bg-emerald-50 text-emerald-800 border-emerald-200",
     border: "border-l-emerald-500",
   },
   negative: {
-    label: "Negatif (-)",
+    key: "graph.dir.negative",
     badge: "bg-rose-50 text-rose-800 border-rose-200",
     border: "border-l-rose-500",
   },
   insignificant: {
-    label: "Anlamsız (n.s.)",
+    key: "graph.dir.insignificant",
     badge: "bg-slate-100 text-slate-700 border-slate-300",
     border: "border-l-slate-400",
   },
   mixed: {
-    label: "Karışık",
+    key: "graph.dir.mixed",
     badge: "bg-amber-50 text-amber-800 border-amber-200",
     border: "border-l-amber-500",
   },
   curvilinear: {
-    label: "Eğrisel",
+    key: "graph.dir.curvilinear",
     badge: "bg-violet-50 text-violet-800 border-violet-200",
     border: "border-l-violet-500",
   },
@@ -41,6 +42,7 @@ function groupByDirection(sides: ContradictionPaperSide[]): Array<[RelationshipD
 }
 
 export function ContradictionComparisonPanel({ cluster }: { cluster: ContradictionCluster }) {
+  const { t, formatNumber } = useI18n();
   const focusPaperDetail = useWorkspaceStore((s) => s.focusPaperDetail);
 
   const grouped = groupByDirection(cluster.opposing_sides);
@@ -58,9 +60,9 @@ export function ContradictionComparisonPanel({ cluster }: { cluster: Contradicti
   const sampleRange =
     sampleSizes.length > 0
       ? sampleSizes.length === 1 || Math.min(...sampleSizes) === Math.max(...sampleSizes)
-        ? `N = ${sampleSizes[0]}`
-        : `N = ${Math.min(...sampleSizes)} – ${Math.max(...sampleSizes)}`
-      : "Örneklem bildirilmemiş";
+        ? `N = ${formatNumber(sampleSizes[0])}`
+        : `N = ${formatNumber(Math.min(...sampleSizes))} – ${formatNumber(Math.max(...sampleSizes))}`
+      : t("contradiction.sampleNone");
 
   return (
     <div className="space-y-3">
@@ -73,7 +75,9 @@ export function ContradictionComparisonPanel({ cluster }: { cluster: Contradicti
             <span>{cluster.target_label}</span>
           </div>
           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900 tabular-nums">
-            Skor: {cluster.contradiction_score.toFixed(2)}
+            {t("contradiction.score", {
+              score: formatNumber(cluster.contradiction_score, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+            })}
           </span>
         </div>
 
@@ -83,7 +87,8 @@ export function ContradictionComparisonPanel({ cluster }: { cluster: Contradicti
             {sampleRange}
           </span>
           <span className="rounded bg-white/80 px-2 py-0.5 border border-amber-200/80">
-            Yöntemler: {distinctMethods.length > 0 ? distinctMethods.join(", ") : "—"}
+            {t("contradiction.methodsPrefix")}{" "}
+            {distinctMethods.length > 0 ? distinctMethods.join(", ") : t("common.dash")}
           </span>
         </div>
       </div>
@@ -95,9 +100,11 @@ export function ContradictionComparisonPanel({ cluster }: { cluster: Contradicti
             <div key={dir} className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/70 p-2.5">
               <div className="flex items-center justify-between">
                 <span className={`rounded border px-2 py-0.5 text-[11px] font-semibold ${style.badge}`}>
-                  {style.label}
+                  {t(style.key)}
                 </span>
-                <span className="text-[11px] text-slate-500 tabular-nums">{sides.length} çalışma</span>
+                <span className="text-[11px] text-slate-500 tabular-nums">
+                  {t("contradiction.studiesCount", { count: sides.length })}
+                </span>
               </div>
 
               {sides.map((side) => (
@@ -115,30 +122,36 @@ export function ContradictionComparisonPanel({ cluster }: { cluster: Contradicti
                   </button>
 
                   <div className="mt-1 text-[11px] text-slate-500">
-                    {side.authors[0] ?? "Yazar yok"} · {side.year ?? "—"} ·{" "}
-                    <span className="font-medium text-slate-700 tabular-nums">s. {side.page_number}</span>
+                    {side.authors[0] ?? t("contradiction.noAuthor")} · {side.year ?? t("common.dash")} ·{" "}
+                    <span className="font-medium text-slate-700 tabular-nums">
+                      {t("common.pageShort", { page: side.page_number })}
+                    </span>
                   </div>
 
                   <div className="mt-2 grid grid-cols-2 gap-1.5 text-[11px] tabular-nums">
                     <div className="rounded bg-slate-50 px-2 py-1 border border-slate-100">
-                      <span className="text-slate-500">Etki:</span>{" "}
+                      <span className="text-slate-500">{t("contradiction.effectLabel")}</span>{" "}
                       <span className="font-semibold text-slate-800">
                         {side.effect_size !== null
-                          ? `${side.effect_metric ?? "β"} = ${side.effect_size}`
-                          : "—"}
+                          ? `${side.effect_metric ?? "β"} = ${formatNumber(side.effect_size, { maximumFractionDigits: 3 })}`
+                          : t("common.dash")}
                       </span>
                     </div>
                     <div className="rounded bg-slate-50 px-2 py-1 border border-slate-100">
                       <span className="text-slate-500">p:</span>{" "}
-                      <span className="font-semibold text-slate-800">{side.p_value ?? "—"}</span>
+                      <span className="font-semibold text-slate-800">{side.p_value ?? t("common.dash")}</span>
                     </div>
                     <div className="rounded bg-slate-50 px-2 py-1 border border-slate-100">
-                      <span className="text-slate-500">Örneklem N:</span>{" "}
-                      <span className="font-semibold text-slate-800">{side.sample_size ?? "—"}</span>
+                      <span className="text-slate-500">{t("contradiction.sampleLabel")}</span>{" "}
+                      <span className="font-semibold text-slate-800">
+                        {side.sample_size !== null ? formatNumber(side.sample_size) : t("common.dash")}
+                      </span>
                     </div>
                     <div className="rounded bg-slate-50 px-2 py-1 border border-slate-100 truncate" title={side.statistical_method ?? undefined}>
-                      <span className="text-slate-500">Yöntem:</span>{" "}
-                      <span className="font-semibold text-slate-800">{side.statistical_method ?? "—"}</span>
+                      <span className="text-slate-500">{t("contradiction.methodLabel")}</span>{" "}
+                      <span className="font-semibold text-slate-800">
+                        {side.statistical_method ?? t("common.dash")}
+                      </span>
                     </div>
                   </div>
 

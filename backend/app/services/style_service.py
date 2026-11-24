@@ -5,6 +5,7 @@ import uuid
 from pathlib import Path
 
 from app.core.errors import BadRequestError, NotFoundError
+from app.core.i18n import Locale, resolve_locale, t
 from app.db.sqlite import ResearchRepository
 from app.db.vector_store import EmbeddingProvider, VectorStore
 from app.models.schemas import StyleExtractRequest, StyleProfile
@@ -69,7 +70,8 @@ class StyleService:
         self.vector_store = vector_store
         self.embedder = embedder
 
-    def extract_style_profile(self, req: StyleExtractRequest) -> StyleProfile:
+    def extract_style_profile(self, req: StyleExtractRequest, *, locale: Locale = "en") -> StyleProfile:
+        active_locale = resolve_locale(explicit=req.locale, default=locale)
         texts: list[tuple[str, str]] = []
         for raw in req.raw_texts:
             cleaned = raw.strip()
@@ -139,10 +141,13 @@ class StyleService:
         else:
             tone = "academic-analytical"
 
-        summary = (
-            f"Stil: {tone} | Ort. cümle uzunluğu: {avg_len} kelime | "
-            f"Edilgenlik oranı: {int(round(passive_ratio * 100))}% | "
-            f"Atıf biçimi: {citation_style}"
+        summary = t(
+            active_locale,
+            "style.summary",
+            tone=tone,
+            avg_len=avg_len,
+            passive_pct=int(round(passive_ratio * 100)),
+            citation_style=citation_style,
         )
 
         profile = self.repo.create_style_profile(

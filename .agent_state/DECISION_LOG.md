@@ -65,3 +65,7 @@
 ### [2026-11-24] [Faz 4] [ADR-014] Sekme 3 Editör ve Hibrit Kanıt/Çelişki Denetim Mimarisi
 - **Karar:** Sekme 3 için odaklanılabilir paragraf-indeksli Markdown editörü (`DraftCriticTab`) ve SQLite + LanceDB hibrit çapraz kontrol motoru (`CriticService`, `StyleService`) eklendi. Havuzdaki makalelerde karşılığı bulunmayan iddialar için `related_paper_id = null` ve `page_number = null` tutulur; asla olmayan atıf veya sahte sayfa referansı üretilmez.
 - **Gerekçe:** Akademik yazarlıkta kullanıcının kendi stilini (cümle uzunluğu, edilgenlik, hedging/geçiş ifadeleri) korurken yerel makale havuzuyla doğrulanabilir, halüsinasyonsuz kanıt ve çelişki denetimi sağlamak.
+
+### [2026-11-24] [Faz 5] [ADR-015] Çift Dilli (EN/TR) Yerelleştirme ve İngilizce Açık Kaynak Standardı
+- **Karar:** Ön yüzde derleme zamanında anahtar eşitliği doğrulanan `src/i18n/` (`en.ts`, `tr.ts`) sözlüğü + `useWorkspaceStore.locale` (`localStorage` + `/api/v1/config` `ui_locale`), arka uçta ise `backend/app/core/i18n.py` (`Accept-Language` başlığı ve açık `locale` parametresi) ile tam `en` / `tr` desteği eklendi. GitHub deposu ana giriş dokümanı (`README.md`) uluslararası açık kaynak standardı olarak İngilizceye çevrildi ve Türkçe eşlikçi olarak `README.tr.md` eklendi.
+- **Gerekçe:** Makale metinlerini, alıntıları ve akademik veri yapılarını (`snake_case` JSON sözleşmesi) bozmadan hem uluslararası açık kaynak kullanıcılarına hem Türkçe araştırmacılara tutarlı, halüsinasyonsuz deneyim sunmak.

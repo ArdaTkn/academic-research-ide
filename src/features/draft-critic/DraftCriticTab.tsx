@@ -18,6 +18,7 @@ import {
   splitMarkdownParagraphs,
 } from "@/features/draft-critic/paragraphs";
 import { StyleProfileModal } from "@/features/draft-critic/StyleProfileModal";
+import { useI18n, type TranslationKey } from "@/i18n";
 import { useWorkspaceStore } from "@/stores/useWorkspaceStore";
 import type { AuditFinding, AuditOverallStatus, AuditResult } from "@/types/contracts";
 
@@ -28,7 +29,15 @@ const PILL_STATUS: Record<AuditOverallStatus, string> = {
   unsupported: "border-orange-300 bg-orange-50 text-orange-800",
 };
 
+const STATUS_LABEL_KEY: Record<AuditOverallStatus, TranslationKey> = {
+  supported: "audit.status.supported",
+  warning: "audit.status.warning",
+  contradicted: "audit.status.contradicted",
+  unsupported: "audit.status.unsupported",
+};
+
 export function DraftCriticTab() {
+  const { t, locale } = useI18n();
   const queryClient = useQueryClient();
   const selectedDraftId = useWorkspaceStore((s) => s.selectedDraftId);
   const setSelectedDraftId = useWorkspaceStore((s) => s.setSelectedDraftId);
@@ -87,7 +96,7 @@ export function DraftCriticTab() {
   }, [activeDraft, drafts.length]);
 
   const auditsQuery = useQuery({
-    queryKey: ["draft-audits", selectedDraftId],
+    queryKey: ["draft-audits", selectedDraftId, locale],
     queryFn: () => apiClient.getDraftAudits(selectedDraftId!),
     enabled: Boolean(selectedDraftId),
   });
@@ -106,13 +115,12 @@ export function DraftCriticTab() {
     },
   });
 
-  // 800ms debounced otomatik kayıt
   useEffect(() => {
     if (!isDirty || !selectedDraftId) return;
     const timer = setTimeout(() => {
       saveMutation.mutate({
         draftId: selectedDraftId,
-        title: title.trim() || "Adsız Taslak",
+        title: title.trim() || t("draft.untitled"),
         content_markdown: markdown,
       });
     }, 800);
@@ -122,7 +130,7 @@ export function DraftCriticTab() {
   const createDraftMutation = useMutation({
     mutationFn: (draftTitle: string) =>
       apiClient.createDraft({
-        title: draftTitle.trim() || "Yeni Araştırma Taslağı",
+        title: draftTitle.trim() || t("draft.defaultFirstTitle"),
         content_markdown: "",
       }),
     onSuccess: (created) => {
@@ -151,10 +159,11 @@ export function DraftCriticTab() {
         paragraph_index: vars.paragraphIndex,
         paragraph_text: vars.paragraphText,
         force_refresh: vars.forceRefresh,
+        locale,
       }),
     onSuccess: (result) => {
       setAuditError(null);
-      queryClient.setQueryData(["draft-audits", result.draft_id], (prev: AuditResult[] | undefined) => {
+      queryClient.setQueryData(["draft-audits", result.draft_id, locale], (prev: AuditResult[] | undefined) => {
         const list = prev ?? [];
         const filtered = list.filter((r) => r.paragraph_index !== result.paragraph_index);
         return [...filtered, result].sort((a, b) => a.paragraph_index - b.paragraph_index);
@@ -162,7 +171,7 @@ export function DraftCriticTab() {
     },
     onError: (err) => {
       setAuditError(
-        err instanceof ApiClientError ? `${err.error_code}: ${err.message}` : "Paragraf denetimi yürütülemedi."
+        err instanceof ApiClientError ? `${err.error_code}: ${err.message}` : t("draft.auditFailed")
       );
     },
   });
@@ -171,7 +180,7 @@ export function DraftCriticTab() {
     mutationFn: (finding: AuditFinding) =>
       apiClient.dismissAuditFinding(finding.id, !finding.is_dismissed),
     onSuccess: (updatedFinding) => {
-      queryClient.setQueryData(["draft-audits", selectedDraftId], (prev: AuditResult[] | undefined) =>
+      queryClient.setQueryData(["draft-audits", selectedDraftId, locale], (prev: AuditResult[] | undefined) =>
         (prev ?? []).map((res) =>
           res.id === updatedFinding.audit_result_id
             ? {
@@ -220,11 +229,10 @@ export function DraftCriticTab() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-slate-50">
-      {/* Üst Taslak ve Stil Araç Çubuğu */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-3">
         <div className="flex flex-wrap items-center gap-2.5">
           <select
-            aria-label="Taslak seçin"
+            aria-label={t("draft.selectAria")}
             value={selectedDraftId ?? ""}
             onChange={(e) => {
               loadedDraftIdRef.current = null;
@@ -232,7 +240,7 @@ export function DraftCriticTab() {
             }}
             className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-800"
           >
-            {drafts.length === 0 && <option value="">Taslak Yok</option>}
+            {drafts.length === 0 && <option value="">{t("draft.none")}</option>}
             {drafts.map((d) => (
               <option key={d.id} value={d.id}>
                 {d.title}
@@ -246,7 +254,7 @@ export function DraftCriticTab() {
             className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
           >
             <FilePlus2 className="h-3.5 w-3.5 text-indigo-600" />
-            <span>Yeni Taslak</span>
+            <span>{t("draft.newDraft")}</span>
           </button>
 
           {selectedDraftId && (
@@ -255,7 +263,7 @@ export function DraftCriticTab() {
               onClick={() => deleteDraftMutation.mutate(selectedDraftId)}
               disabled={deleteDraftMutation.isPending}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50"
-              title="Seçili taslağı sil"
+              title={t("draft.deleteTooltip")}
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
@@ -267,7 +275,7 @@ export function DraftCriticTab() {
             className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50/70 px-3 py-1.5 text-xs font-medium text-indigo-800 hover:bg-indigo-100/70"
           >
             <Sparkles className="h-3.5 w-3.5" />
-            <span>Stil: {activeProfile ? activeProfile.name : "Tanımla"}</span>
+            <span>{t("draft.styleBtn", { name: activeProfile ? activeProfile.name : t("draft.styleDefine") })}</span>
           </button>
         </div>
 
@@ -276,13 +284,13 @@ export function DraftCriticTab() {
             <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
               {saveMutation.isPending ? (
                 <>
-                  <Loader2 className="h-3 w-3 animate-spin" /> Kaydediliyor...
+                  <Loader2 className="h-3 w-3 animate-spin" /> {t("draft.saving")}
                 </>
               ) : isDirty ? (
-                "Değişiklikler bekliyor"
+                t("draft.unsaved")
               ) : (
                 <>
-                  <Check className="h-3 w-3 text-emerald-600" /> Kaydedildi
+                  <Check className="h-3 w-3 text-emerald-600" /> {t("draft.saved")}
                 </>
               )}
             </span>
@@ -294,7 +302,7 @@ export function DraftCriticTab() {
             className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
           >
             {isPreviewMode ? <Pencil className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-            <span>{isPreviewMode ? "Düzenle" : "Önizleme"}</span>
+            <span>{isPreviewMode ? t("draft.edit") : t("draft.preview")}</span>
           </button>
 
           <button
@@ -308,7 +316,7 @@ export function DraftCriticTab() {
             ) : (
               <ShieldCheck className="h-3.5 w-3.5" />
             )}
-            <span>Paragrafı Denetle</span>
+            <span>{t("draft.auditParagraph")}</span>
           </button>
         </div>
       </div>
@@ -319,7 +327,7 @@ export function DraftCriticTab() {
             type="text"
             value={newDraftTitle}
             onChange={(e) => setNewDraftTitle(e.target.value)}
-            placeholder="Yeni taslak başlığı (örn. Bulgular ve Tartışma)..."
+            placeholder={t("draft.newTitlePlaceholder")}
             className="w-80 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none"
           />
           <button
@@ -328,61 +336,56 @@ export function DraftCriticTab() {
             disabled={createDraftMutation.isPending}
             className="rounded-lg bg-indigo-600 px-3 py-1.5 font-medium text-white hover:bg-indigo-700"
           >
-            Oluştur
+            {t("common.create")}
           </button>
           <button
             type="button"
             onClick={() => setShowNewDraftForm(false)}
             className="rounded-lg px-2.5 py-1.5 text-slate-600 hover:bg-slate-200"
           >
-            İptal
+            {t("common.cancel")}
           </button>
         </div>
       )}
 
-      {/* Ana Editör + Sağ Denetim Çekmecesi */}
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div className="flex min-w-0 flex-1 flex-col overflow-y-auto px-6 py-5">
           {draftsQuery.isLoading ? (
             <div className="flex h-64 items-center justify-center text-sm text-slate-500">
               <Loader2 className="mr-2 h-5 w-5 animate-spin text-indigo-600" />
-              Taslaklar yükleniyor...
+              {t("draft.loading")}
             </div>
           ) : !selectedDraftId ? (
             <div className="mx-auto my-auto max-w-md rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
               <FileText className="mx-auto mb-3 h-9 w-9 text-slate-300" />
-              <div className="text-sm font-semibold text-slate-900">Henüz aktif bir taslak yok</div>
-              <p className="mt-1 text-xs text-slate-500">
-                Akademik metninizi yazmaya başlamak ve yerel makale havuzuna karşı denetlemek için yeni bir taslak
-                oluşturun.
-              </p>
+              <div className="text-sm font-semibold text-slate-900">{t("draft.emptyTitle")}</div>
+              <p className="mt-1 text-xs text-slate-500">{t("draft.emptySubtitle")}</p>
               <button
                 type="button"
-                onClick={() => createDraftMutation.mutate("İlk Araştırma Taslağım")}
+                onClick={() => createDraftMutation.mutate(t("draft.defaultFirstTitle"))}
                 className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-medium text-white hover:bg-indigo-700"
               >
                 <FilePlus2 className="h-3.5 w-3.5" />
-                <span>İlk Taslağı Oluştur</span>
+                <span>{t("draft.createFirst")}</span>
               </button>
             </div>
           ) : (
             <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-3">
               <input
                 type="text"
-                aria-label="Taslak başlığı"
+                aria-label={t("draft.titleAria")}
                 value={title}
                 onChange={(e) => {
                   setTitle(e.target.value);
                   setIsDirty(true);
                 }}
-                placeholder="Taslak başlığı..."
+                placeholder={t("draft.titlePlaceholder")}
                 className="border-b border-slate-200 bg-transparent pb-2 text-xl font-semibold text-slate-900 focus:border-indigo-500 focus:outline-none"
               />
 
-              {/* Paragraf Gezgini */}
               {paragraphs.length > 0 && (
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-[11px] font-medium text-slate-500">Paragraflar:</span>
+                  <span className="text-[11px] font-medium text-slate-500">{t("draft.paragraphsLabel")}</span>
                   {paragraphs.map((p) => {
                     const audit = auditsByIndex.get(p.index);
                     const isActive = p.index === resolvedParagraphIndex;
@@ -398,7 +401,7 @@ export function DraftCriticTab() {
                           isActive ? "ring-2 ring-indigo-400" : ""
                         }`}
                       >
-                        P{p.index + 1} ({p.wordCount}k)
+                        P{p.index + 1} ({p.wordCount}{t("draft.paragraphWordSuffix")})
                       </button>
                     );
                   })}
@@ -408,7 +411,7 @@ export function DraftCriticTab() {
               {isPreviewMode ? (
                 <div className="flex-1 space-y-4 rounded-xl border border-slate-200 bg-white p-6 text-sm leading-relaxed text-slate-800 shadow-2xs">
                   {paragraphs.length === 0 ? (
-                    <p className="text-slate-400">Önizlenecek içerik yok.</p>
+                    <p className="text-slate-400">{t("draft.previewEmpty")}</p>
                   ) : (
                     paragraphs.map((p) => {
                       const audit = auditsByIndex.get(p.index);
@@ -422,8 +425,8 @@ export function DraftCriticTab() {
                           }`}
                         >
                           <div className="mb-1 flex items-center justify-between text-[10px] font-semibold text-slate-400">
-                            <span>PARAGRAF {p.index + 1}</span>
-                            {audit && <span>{audit.overall_status.toUpperCase()}</span>}
+                            <span>{t("draft.paragraphHeading", { index: p.index + 1 })}</span>
+                            {audit && <span>{t(STATUS_LABEL_KEY[audit.overall_status])}</span>}
                           </div>
                           <p className="whitespace-pre-wrap">{p.text}</p>
                         </div>
@@ -434,7 +437,7 @@ export function DraftCriticTab() {
               ) : (
                 <textarea
                   ref={textareaRef}
-                  aria-label="Markdown taslak editörü"
+                  aria-label={t("draft.editorAria")}
                   value={markdown}
                   onChange={(e) => {
                     setMarkdown(e.target.value);
@@ -451,7 +454,7 @@ export function DraftCriticTab() {
                       handleTriggerAudit(false);
                     }
                   }}
-                  placeholder="Akademik metninizi Markdown biçiminde buraya yazın. Paragrafları boş satırla ayırın; seçili paragrafı Cmd/Ctrl + Enter ile denetleyebilirsiniz."
+                  placeholder={t("draft.editorPlaceholder")}
                   className="min-h-[460px] flex-1 resize-none rounded-xl border border-slate-200 bg-white p-5 font-sans text-sm leading-relaxed text-slate-900 shadow-2xs focus:border-indigo-500 focus:outline-none"
                 />
               )}

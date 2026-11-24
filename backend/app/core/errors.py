@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.core.i18n import Locale, resolve_locale, t
 from app.models.schemas import ApiError
 
 
@@ -101,11 +102,18 @@ class NotImplementedFeatureError(AppError):
 
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
-    """Attach a per-request UUID to request.state and X-Request-ID header."""
+    """Attach a per-request UUID and resolved locale to request.state."""
 
     async def dispatch(self, request: Request, call_next: Any) -> Any:
         request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
         request.state.request_id = request_id
+        settings = getattr(request.app.state, "settings", None)
+        default_locale: Locale = getattr(settings, "ui_locale", "en") if settings else "en"
+        request.state.locale = resolve_locale(
+            explicit=request.query_params.get("locale"),
+            accept_language=request.headers.get("Accept-Language"),
+            default=default_locale,
+        )
         response = await call_next(request)
         response.headers["X-Request-ID"] = request_id
         return response
@@ -115,14 +123,43 @@ def _get_request_id(request: Request) -> str | None:
     return getattr(request.state, "request_id", None)
 
 
+def _get_request_locale(request: Request) -> Locale:
+    return getattr(request.state, "locale", "en")
+
+
+_ERROR_CODE_I18N_KEYS: dict[str, str] = {
+    "BAD_REQUEST": "err.bad_request",
+    "NOT_FOUND": "err.not_found",
+    "CONFLICT": "err.conflict",
+    "PAPER_PARSE_FAILED": "err.pdf_parse_failed",
+    "EXTRACTION_VALIDATION_FAILED": "err.extraction_validation_failed",
+    "SERVICE_UNAVAILABLE": "err.service_unavailable",
+    "NOT_IMPLEMENTED": "err.not_implemented",
+    "NO_FILES_PROVIDED": "err.no_files",
+    "INVALID_INGEST_REQUEST": "err.invalid_ingest",
+    "STYLE_SOURCE_NOT_FOUND": "err.style_source_not_found",
+    "NO_STYLE_TEXTS_PROVIDED": "err.no_style_texts",
+    "PAPER_NOT_FOUND": "err.paper_not_found",
+    "JOB_NOT_FOUND": "err.job_not_found",
+    "VARIABLE_NOT_FOUND": "err.variable_not_found",
+    "DRAFT_NOT_FOUND": "err.draft_not_found",
+    "STYLE_PROFILE_NOT_FOUND": "err.style_profile_not_found",
+    "AUDIT_FINDING_NOT_FOUND": "err.audit_finding_not_found",
+    "DUPLICATE_PAPER": "err.duplicate_paper",
+}
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     """Register canonical ApiError handlers for all exceptions."""
 
     @app.exception_handler(AppError)
     async def handle_app_error(request: Request, exc: AppError) -> JSONResponse:
+        locale = _get_request_locale(request)
+        i18n_key = _ERROR_CODE_I18N_KEYS.get(exc.error_code)
+        message = t(locale, i18n_key) if i18n_key else exc.message
         payload = ApiError(
             error_code=exc.error_code,
-            message=exc.message,
+            message=message,
             details=exc.details,
             request_id=_get_request_id(request),
         )
@@ -130,9 +167,10 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(RequestValidationError)
     async def handle_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+        locale = _get_request_locale(request)
         payload = ApiError(
             error_code="VALIDATION_ERROR",
-            message="İstek parametreleri sözleşmeye uygun değil.",
+            message=t(locale, "err.validation"),
             details={"errors": exc.errors()},
             request_id=_get_request_id(request),
         )
@@ -150,9 +188,10 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def handle_unexpected_error(request: Request, exc: Exception) -> JSONResponse:
+        locale = _get_request_locale(request)
         payload = ApiError(
             error_code="INTERNAL_SERVER_ERROR",
-            message="Beklenmeyen sunucu hatası oluştu.",
+            message=t(locale, "err.internal"),
             details={"exception_type": type(exc).__name__, "detail": str(exc)},
             request_id=_get_request_id(request),
         )

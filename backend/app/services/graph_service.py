@@ -4,6 +4,7 @@ import json
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from app.core.i18n import Locale, t
 from app.models.schemas import (
     ContradictionCluster,
     ContradictionPaperSide,
@@ -40,6 +41,7 @@ class GraphService:
         year_from: int | None = None,
         year_to: int | None = None,
         variable_ids: list[str] | None = None,
+        locale: Locale = "en",
     ) -> GraphResponse:
         snapshot = self.repo.fetch_graph_snapshot()
         var_map: dict[str, dict[str, Any]] = {v["id"]: v for v in snapshot.variables}
@@ -188,7 +190,7 @@ class GraphService:
                 )
             )
 
-        gaps = self._compute_gaps(included_var_ids, var_map, adj, edge_groups, papers_per_var)
+        gaps = self._compute_gaps(included_var_ids, var_map, adj, edge_groups, papers_per_var, locale=locale)
         return GraphResponse(
             nodes=nodes,
             edges=edges,
@@ -203,6 +205,7 @@ class GraphService:
         adj: dict[str, set[str]],
         edge_groups: dict[tuple[str, str], list[dict[str, Any]]],
         papers_per_var: dict[str, set[str]],
+        locale: Locale = "en",
     ) -> list[ResearchGap]:
         ordered = sorted(var_ids)
         gaps: list[ResearchGap] = []
@@ -223,10 +226,7 @@ class GraphService:
                             co_occurrence_neighbors=common,
                             direct_study_count=0,
                             gap_score=score,
-                            rationale=(
-                                f"{common} ortak komşu değişken üzerinden dolaylı bağlantılı, "
-                                "ancak doğrudan ampirik test bulunmuyor (0 çalışma)."
-                            ),
+                            rationale=t(locale, "gap.unstudied", common=common),
                         )
                     )
                 elif (
@@ -245,16 +245,19 @@ class GraphService:
                             co_occurrence_neighbors=common,
                             direct_study_count=1,
                             gap_score=score,
-                            rationale=(
-                                f"Her iki kavram en az 2 makalede geçiyor ve {common} ortak komşuya sahip, "
-                                "ancak aralarında yalnızca 1 doğrudan çalışma bulunuyor."
-                            ),
+                            rationale=t(locale, "gap.understudied", common=common),
                         )
                     )
         return sorted(gaps, key=lambda g: (-g.gap_score, -g.co_occurrence_neighbors, g.source_label))
 
-    def compute_research_gaps(self, *, limit: int = 20, min_gap_score: float = 0.0) -> list[ResearchGap]:
-        graph = self.build_graph()
+    def compute_research_gaps(
+        self,
+        *,
+        limit: int = 20,
+        min_gap_score: float = 0.0,
+        locale: Locale = "en",
+    ) -> list[ResearchGap]:
+        graph = self.build_graph(locale=locale)
         return [g for g in graph.gaps if g.gap_score >= min_gap_score][:limit]
 
     def compute_contradictions(self, edge_key: str | None = None) -> list[ContradictionCluster]:

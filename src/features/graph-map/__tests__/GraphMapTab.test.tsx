@@ -167,6 +167,7 @@ describe("computeDagreLayout", () => {
 describe("GraphMapTab", () => {
   beforeEach(() => {
     useWorkspaceStore.setState({
+      locale: "en",
       activeTab: "graph",
       selectedPaperId: null,
       selectedVariableId: null,
@@ -191,14 +192,13 @@ describe("GraphMapTab", () => {
     expect(screen.getByText("Isolation Effects in Shift Teams")).toBeInTheDocument();
     expect(screen.getByText("SEM")).toBeInTheDocument();
     expect(screen.getByText("OLS Regression")).toBeInTheDocument();
-    expect(screen.getByText("s. 6")).toBeInTheDocument();
-    expect(screen.getByText("s. 9")).toBeInTheDocument();
+    expect(screen.getByText("p. 6")).toBeInTheDocument();
+    expect(screen.getByText("p. 9")).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("Hybrid Autonomy in Tech"));
     expect(useWorkspaceStore.getState().selectedPaperId).toBe("p-1");
 
-    // Boşluklar sekmesine geçiş
-    fireEvent.click(screen.getByRole("button", { name: /^Boşluklar \(\d+\)$/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Gaps \(\d+\)$/ }));
     expect(await screen.findByText(/Remote Work ↔ Turnover Intention/)).toBeInTheDocument();
 
     fetchSpy.mockRestore();
@@ -236,19 +236,18 @@ describe("GraphMapTab", () => {
     useWorkspaceStore.setState({ selectedVariableId: "v-2", graphInspectorTab: "node" });
     renderWithQuery(<GraphMapTab />);
 
-    expect(await screen.findByRole("button", { name: "Ölçek Matrisinde Filtrele" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Ölçek Matrisinde Filtrele" }));
+    expect(await screen.findByRole("button", { name: "Filter in Scale Matrix" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Filter in Scale Matrix" }));
     expect(useWorkspaceStore.getState().activeTab).toBe("matrix");
     expect(useWorkspaceStore.getState().matrixFilters.variable_id).toBe("v-2");
 
-    // Merge modal doğrulaması
     useWorkspaceStore.setState({ activeTab: "graph" });
-    fireEvent.click(screen.getByRole("button", { name: "Değişken Birleştir" }));
-    expect(await screen.findByText("Kanonik Değişken Birleştirme")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Merge Variables" }));
+    expect(await screen.findByText("Canonical Variable Merge")).toBeInTheDocument();
 
     const checkboxes = screen.getAllByRole("checkbox");
     fireEvent.click(checkboxes[0]);
-    fireEvent.click(screen.getByRole("button", { name: "Birleştir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Merge" }));
 
     await waitFor(() => {
       expect(fetchSpy).toHaveBeenCalledWith(

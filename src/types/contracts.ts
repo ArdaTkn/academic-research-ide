@@ -341,6 +341,7 @@ export interface AuditParagraphRequest {
   paragraph_text: string;
   style_profile_id?: string | null;
   force_refresh?: boolean;
+  locale?: UiLocale | null;
 }
 
 export interface StyleExtractRequest {
@@ -348,6 +349,7 @@ export interface StyleExtractRequest {
   file_paths?: string[];
   raw_texts?: string[];
   set_active?: boolean;
+  locale?: UiLocale | null;
 }
 
 export interface ApiError {
@@ -373,6 +375,8 @@ export interface HealthResponse {
   active_llm_model: string;
 }
 
+export type UiLocale = "en" | "tr";
+
 export interface ConfigResponse {
   llm_provider: string;
   llm_model: string;
@@ -381,6 +385,7 @@ export interface ConfigResponse {
   embedding_base_url: string | null;
   embedding_model: string;
   embedding_dim: number;
+  ui_locale: UiLocale;
   has_api_key: boolean;
   llm_api_key_masked: string;
 }
@@ -394,6 +399,7 @@ export interface ConfigPatchRequest {
   embedding_base_url?: string | null;
   embedding_model?: string | null;
   embedding_dim?: number | null;
+  ui_locale?: UiLocale | null;
 }
 
 export interface IngestPathsRequest {

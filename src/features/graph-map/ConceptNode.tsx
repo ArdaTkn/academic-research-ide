@@ -1,5 +1,6 @@
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { memo } from "react";
+import { useI18n } from "@/i18n";
 import type { VariableRole } from "@/types/contracts";
 
 export interface ConceptNodeData extends Record<string, unknown> {
@@ -23,6 +24,7 @@ const ROLE_SHORT: Record<VariableRole, string> = {
 };
 
 function ConceptNodeComponent({ data, selected }: NodeProps<ConceptFlowNode>) {
+  const { t } = useI18n();
   const scaleRing =
     selected
       ? "border-indigo-600 ring-2 ring-indigo-300 shadow-md"
@@ -39,9 +41,9 @@ function ConceptNodeComponent({ data, selected }: NodeProps<ConceptFlowNode>) {
         <div className="line-clamp-2 text-xs font-semibold leading-snug text-slate-900">{data.label}</div>
         <span
           className="shrink-0 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 tabular-nums"
-          title={`${data.paper_count} makalede çalışıldı`}
+          title={t("graph.node.papers", { count: data.paper_count })}
         >
-          {data.paper_count} makale
+          {t("graph.node.papers", { count: data.paper_count })}
         </span>
       </div>
 
@@ -56,7 +58,7 @@ function ConceptNodeComponent({ data, selected }: NodeProps<ConceptFlowNode>) {
         ))}
         {data.is_gap_endpoint && (
           <span className="rounded bg-sky-100 px-1.5 py-0.2 text-[10px] font-semibold text-sky-800">
-            Boşluk Adayı
+            {t("graph.node.gapCandidate")}
           </span>
         )}
       </div>

@@ -15,10 +15,10 @@
 
 ## 2. Mevcut Durum Özeti
 
-- **Aktif Faz:** `Tüm Fazlar Tamamlandı (Faz 0–4 Final QA Onaylı)`
-- **Son Güncelleyen Ajan:** `[Agent-Editor-Critic]`, `[Agent-Backend-NLP]` & `[Agent-QA-Reviewer]`
+- **Aktif Faz:** `Faz 0–5 Tamamlandı (Çok Dilli i18n EN/TR & İngilizce Açık Kaynak Deposu)`
+- **Son Güncelleyen Ajan:** `[Agent-Architect]`, `[Agent-Backend-NLP]`, `[Agent-Frontend-Core]`, `[Agent-Graph-Vis]`, `[Agent-Editor-Critic]`, `[Agent-QA-Reviewer]`
 - **Tarih:** `2026-11-24`
-- **Sıradaki İlk Adım:** Tüm çekirdek modüller (Ingestion/Parser, Sekme 1, Sekme 2, Sekme 3) ve Tauri v2 kabuğu tamamlanıp doğrulandı; uygulama `npm run tauri dev` veya geliştirme sunucusuyla çalıştırılmaya hazır.
+- **Sıradaki İlk Adım:** Tüm fazlar (Faz 0–5) tamamlandı ve doğrulandı; GitHub deposu güncel ve kullanıma hazır.
 
 ---
 
@@ -79,3 +79,9 @@
 - [x] `src/features/draft-critic/`: Odaklanılabilir Markdown editörü (`DraftCriticTab.tsx`, `paragraphs.ts`), stil profili yöneticisi (`StyleProfileModal.tsx`), debounced otomatik kayıt ve paragraf bazlı denetim tetikleyicisi (`Cmd/Ctrl + Enter`).
 - [x] Sağ Denetim Çekmecesi (`AuditDrawer.tsx`): Çelişki, desteksiz iddia, eksik atıf, destekleyici kanıt ve stil sapması kartları; sayfa referansı, alıntı önizlemesi, `PaperDetailDrawer` bağlantısı ve bulgu kapatma (`dismiss`).
 - [x] `[Agent-QA-Reviewer]` Uçtan Uca Final Doğrulama: Backend `pytest` 17/17, Frontend `tsc --noEmit` 0 hata + Vitest 12/12 + `vite build`, Tauri `cargo check` ve open-source hijyen denetimi (kişisel yol/veri sızıntısı yok) başarıyla geçti.
+
+### Faz 5 — Çok Dilli Destek (i18n EN/TR) & İngilizce Açık Kaynak Standardı (`[Agent-Architect]`, `[Agent-Backend-NLP]`, `[Agent-Frontend-Core]`, `[Agent-Graph-Vis]`, `[Agent-Editor-Critic]`, `[Agent-QA-Reviewer]`)
+- [x] Backend i18n: `backend/app/core/i18n.py` (`en`/`tr` katalog ve CSV başlıkları), `config.py` (`ui_locale` kalıcılığı), `errors.py` (`Accept-Language` middleware ve yerelleştirilmiş `ApiError`), `graph_service.py` (boşluk gerekçeleri), `style_service.py` (stil özetleri) ve `critic_service.py` (dil anahtarlı önbellek, özgün makale başlıkları/alıntılar korunarak yerelleştirilmiş bulgular ve sıfır uydurma atıf garantisi).
+- [x] Frontend i18n: `src/i18n/{en,tr,index}.ts` (birebir anahtar/parametre eşitliği ve yerelleştirilmiş sayı/tarih biçimleme), `useWorkspaceStore` + `localStorage` + `/api/v1/config` senkronizasyonu, `TopNavBar` (`EN / TR` canlı geçiş) ve `SettingsModal`, `IngestionSidebar`, `PaperDetailDrawer`, Sekme 1 (`graph-map/*`), Sekme 2 (`ScaleMatrixTab`), Sekme 3 (`draft-critic/*`) ile `client.ts`/`sse.ts` tam yerelleştirildi.
+- [x] Açık Kaynak İngilizce Dokümantasyon & Sözleşme Güncellemesi: Kök `README.md` (İngilizce, `English | Türkçe` geçişli) ve `README.tr.md` göreli yollarla yazıldı; `SCHEMA_AND_CONTRACTS.md`, `DECISION_LOG.md` (`ADR-015`) ve `.env.example` güncellendi.
+- [x] `[Agent-QA-Reviewer]` i18n & Final QA: Backend `pytest` 19/19 (`test_i18n_localization.py` dahil), Frontend `tsc --noEmit` (0 hata) + Vitest 14/14 (5 test dosyası, `i18n.test.tsx` dahil) + `vite build`, Tauri `cargo check` ve açık kaynak hijyen denetimi (0 kişisel yol/veritabanı/gizli anahtar sızıntısı) geçti.

@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, status
 
-from app.api.deps import get_critic_service, get_repo, get_style_service
+from app.api.deps import get_critic_service, get_repo, get_request_locale, get_style_service
+from app.core.i18n import Locale
 from app.db.sqlite import ResearchRepository
 from app.models.schemas import (
     AuditFinding,
@@ -30,9 +31,10 @@ def list_style_profiles(repo: ResearchRepository = Depends(get_repo)) -> list[St
 @router.post("/style-profiles/extract", response_model=StyleProfile, status_code=status.HTTP_201_CREATED)
 def extract_style_profile(
     body: StyleExtractRequest,
+    locale: Locale = Depends(get_request_locale),
     style_service: StyleService = Depends(get_style_service),
 ) -> StyleProfile:
-    return style_service.extract_style_profile(body)
+    return style_service.extract_style_profile(body, locale=locale)
 
 
 @router.patch("/style-profiles/{profile_id}/activate", response_model=StyleProfile)
@@ -97,9 +99,10 @@ def list_draft_audits(
 def audit_draft_paragraph(
     draft_id: str,
     body: AuditParagraphRequest,
+    locale: Locale = Depends(get_request_locale),
     critic_service: CriticService = Depends(get_critic_service),
 ) -> AuditResult:
-    return critic_service.audit_paragraph(draft_id, body)
+    return critic_service.audit_paragraph(draft_id, body, locale=locale)
 
 
 @router.patch("/audit-findings/{finding_id}/dismiss", response_model=AuditFinding)

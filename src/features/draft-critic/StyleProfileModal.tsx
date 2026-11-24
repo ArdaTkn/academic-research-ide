@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Loader2, Sparkles, X } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { apiClient, ApiClientError } from "@/api/client";
+import { useI18n } from "@/i18n";
 
 interface StyleProfileModalProps {
   isOpen: boolean;
@@ -9,6 +10,7 @@ interface StyleProfileModalProps {
 }
 
 export function StyleProfileModal({ isOpen, onClose }: StyleProfileModalProps) {
+  const { t, locale } = useI18n();
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [rawText, setRawText] = useState("");
@@ -32,6 +34,7 @@ export function StyleProfileModal({ isOpen, onClose }: StyleProfileModalProps) {
         file_paths: filePaths,
         raw_texts: rawTexts,
         set_active: true,
+        locale,
       });
     },
     onSuccess: () => {
@@ -61,7 +64,7 @@ export function StyleProfileModal({ isOpen, onClose }: StyleProfileModalProps) {
     extractMutation.error instanceof ApiClientError
       ? `${extractMutation.error.error_code}: ${extractMutation.error.message}`
       : extractMutation.isError
-        ? "Stil profili çıkarılamadı."
+        ? t("style.extractFailed")
         : null;
 
   return (
@@ -71,17 +74,15 @@ export function StyleProfileModal({ isOpen, onClose }: StyleProfileModalProps) {
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-indigo-600" />
             <div>
-              <h2 className="text-sm font-semibold text-slate-900">Akademik Stil Profilleri</h2>
-              <p className="text-[11px] text-slate-500">
-                Geçmiş makale/tez metinlerinizden cümle ritmi, edilgenlik ve hedging profili çıkarın.
-              </p>
+              <h2 className="text-sm font-semibold text-slate-900">{t("style.modalTitle")}</h2>
+              <p className="text-[11px] text-slate-500">{t("style.modalSubtitle")}</p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-            aria-label="Stil penceresini kapat"
+            aria-label={t("style.closeAria")}
           >
             <X className="h-4 w-4" />
           </button>
@@ -90,16 +91,16 @@ export function StyleProfileModal({ isOpen, onClose }: StyleProfileModalProps) {
         <div className="flex-1 space-y-5 overflow-y-auto p-5 text-xs">
           <section className="space-y-2">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-              Kayıtlı Profiller ({profilesQuery.data?.length ?? 0})
+              {t("style.savedProfiles", { count: profilesQuery.data?.length ?? 0 })}
             </div>
 
             {profilesQuery.isLoading ? (
               <div className="flex items-center gap-2 py-4 text-slate-500">
-                <Loader2 className="h-4 w-4 animate-spin" /> Profiller yükleniyor...
+                <Loader2 className="h-4 w-4 animate-spin" /> {t("style.loading")}
               </div>
             ) : (profilesQuery.data ?? []).length === 0 ? (
               <div className="rounded-lg border border-dashed border-slate-200 p-4 text-center text-slate-500">
-                Henüz stil profili çıkarılmadı. Aşağıdan örnek metin ekleyerek ilk profilinizi oluşturun.
+                {t("style.empty")}
               </div>
             ) : (
               <div className="space-y-2">
@@ -114,7 +115,7 @@ export function StyleProfileModal({ isOpen, onClose }: StyleProfileModalProps) {
                       <div className="font-semibold text-slate-900">{profile.name}</div>
                       {profile.is_active ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-800">
-                          <CheckCircle2 className="h-3 w-3" /> Aktif Profil
+                          <CheckCircle2 className="h-3 w-3" /> {t("style.activeBadge")}
                         </span>
                       ) : (
                         <button
@@ -123,7 +124,7 @@ export function StyleProfileModal({ isOpen, onClose }: StyleProfileModalProps) {
                           disabled={activateMutation.isPending}
                           className="rounded border border-slate-200 bg-white px-2.5 py-0.5 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
                         >
-                          Aktif Yap
+                          {t("style.setActive")}
                         </button>
                       )}
                     </div>
@@ -145,39 +146,39 @@ export function StyleProfileModal({ isOpen, onClose }: StyleProfileModalProps) {
 
           <form onSubmit={handleSubmit} className="space-y-3 border-t border-slate-200 pt-4">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-              Yeni Stil Profili Çıkar
+              {t("style.extractNew")}
             </div>
 
             <label className="block font-medium text-slate-700">
-              Profil Adı
+              {t("style.nameLabel")}
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Örn. Q1 Makale Üslubum"
+                placeholder={t("style.namePlaceholder")}
                 className="mt-1 w-full rounded-lg border border-slate-300 px-2.5 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none"
                 required
               />
             </label>
 
             <label className="block font-medium text-slate-700">
-              Geçmiş Akademik Metin Örneği
+              {t("style.rawLabel")}
               <textarea
                 rows={4}
                 value={rawText}
                 onChange={(e) => setRawText(e.target.value)}
-                placeholder="Kendi yazdığınız 1–3 akademik paragrafı buraya yapıştırın..."
+                placeholder={t("style.rawPlaceholder")}
                 className="mt-1 w-full rounded-lg border border-slate-300 px-2.5 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none"
               />
             </label>
 
             <label className="block font-medium text-slate-700">
-              Veya Yerel Dosya Yolları (.md / .txt / .pdf — her satıra bir yol)
+              {t("style.filesLabel")}
               <textarea
                 rows={2}
                 value={filePathsText}
                 onChange={(e) => setFilePathsText(e.target.value)}
-                placeholder="/path/to/past_paper.md"
+                placeholder="samples/past_paper.md"
                 className="mt-1 w-full rounded-lg border border-slate-300 px-2.5 py-2 font-mono text-[11px] text-slate-900 focus:border-indigo-500 focus:outline-none"
               />
             </label>
@@ -192,7 +193,7 @@ export function StyleProfileModal({ isOpen, onClose }: StyleProfileModalProps) {
                 onClick={onClose}
                 className="rounded-lg border border-slate-200 px-3.5 py-1.5 font-medium text-slate-700 hover:bg-slate-50"
               >
-                Kapat
+                {t("common.close")}
               </button>
               <button
                 type="submit"
@@ -200,7 +201,7 @@ export function StyleProfileModal({ isOpen, onClose }: StyleProfileModalProps) {
                 className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-1.5 font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
               >
                 {extractMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                <span>Profil Çıkar & Aktifleştir</span>
+                <span>{t("style.extractSubmit")}</span>
               </button>
             </div>
           </form>

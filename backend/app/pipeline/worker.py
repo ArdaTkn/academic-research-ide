@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 
 from app.core.errors import AppError
+from app.core.i18n import Locale, t
 from app.db.sqlite import ResearchRepository, utc_now_iso
 from app.db.vector_store import EmbeddingProvider, VectorStore
 from app.models.schemas import IngestionJob, IngestionStatus, JobStatus
@@ -63,10 +64,16 @@ class IngestionManager:
             if not subs and job_id in self._subscribers:
                 self._subscribers.pop(job_id, None)
 
-    def enqueue_path(self, file_path: Path, *, reprocess_paper_id: str | None = None) -> IngestionJob:
+    def enqueue_path(
+        self,
+        file_path: Path,
+        *,
+        reprocess_paper_id: str | None = None,
+        locale: Locale = "en",
+    ) -> IngestionJob:
         job = self.repo.create_job(str(file_path), paper_id=reprocess_paper_id)
         task = asyncio.create_task(
-            self.process_job(job.id, file_path, reprocess_paper_id=reprocess_paper_id)
+            self.process_job(job.id, file_path, reprocess_paper_id=reprocess_paper_id, locale=locale)
         )
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
@@ -78,6 +85,7 @@ class IngestionManager:
         file_path: Path,
         *,
         reprocess_paper_id: str | None = None,
+        locale: Locale = "en",
     ) -> IngestionJob:
         paper_id: str | None = reprocess_paper_id
         try:
@@ -85,7 +93,7 @@ class IngestionManager:
                 job_id,
                 status=JobStatus.EXTRACTING_TEXT,
                 progress_percent=15,
-                current_stage_message="PDF metni ve tablolar çıkarılıyor...",
+                current_stage_message=t(locale, "job.extracting_text"),
                 started_at=utc_now_iso(),
             )
             self._emit(job)
@@ -98,7 +106,7 @@ class IngestionManager:
                     raise AppError(
                         status_code=409,
                         error_code="DUPLICATE_PAPER",
-                        message="Bu PDF dosyası (aynı SHA-256 özetiyle) zaten havuzda mevcut.",
+                        message=t(locale, "err.duplicate_paper"),
                         details={"existing_paper_id": existing.id, "file_hash_sha256": doc.file_hash_sha256},
                     )
                 if existing is not None and existing.ingestion_status in (
@@ -122,7 +130,7 @@ class IngestionManager:
                 paper_id=paper_id,
                 status=JobStatus.PARSING_LLM,
                 progress_percent=45,
-                current_stage_message="Değişkenler, ilişkiler, ölçekler ve iddialar çıkarılıyor...",
+                current_stage_message=t(locale, "job.parsing_llm"),
             )
             self._emit(job)
 
@@ -139,7 +147,7 @@ class IngestionManager:
                 job_id,
                 status=JobStatus.INDEXING_VECTORS,
                 progress_percent=80,
-                current_stage_message="Sayfa referanslı parçalar LanceDB vektör veritabanına indeksleniyor...",
+                current_stage_message=t(locale, "job.indexing_vectors"),
             )
             self._emit(job)
 
@@ -153,7 +161,7 @@ class IngestionManager:
                 job_id,
                 status=JobStatus.COMPLETED,
                 progress_percent=100,
-                current_stage_message="Makale işleme ve indeksleme tamamlandı.",
+                current_stage_message=t(locale, "job.completed"),
                 completed_at=utc_now_iso(),
             )
             self._emit(job)

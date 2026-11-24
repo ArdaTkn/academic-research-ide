@@ -7,7 +7,8 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse, Response
 
-from app.api.deps import get_repo
+from app.api.deps import get_repo, get_request_locale
+from app.core.i18n import CSV_HEADERS, Locale
 from app.db.sqlite import ResearchRepository
 from app.models.schemas import MethodCountItem, ScaleMatrixFilter, ScaleMatrixResponse
 
@@ -98,6 +99,7 @@ def export_scale_matrix(
     year_to: int | None = Query(default=None, ge=1800, le=2100),
     sort_by: str = Query(default="year"),
     sort_dir: Literal["asc", "desc"] = Query(default="desc"),
+    locale: Locale = Depends(get_request_locale),
     repo: ResearchRepository = Depends(get_repo),
 ) -> Response:
     filters = _build_filter(
@@ -124,29 +126,7 @@ def export_scale_matrix(
 
     buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow(
-        [
-            "scale_id",
-            "paper_id",
-            "paper_title",
-            "authors",
-            "year",
-            "variable_label",
-            "scale_name",
-            "original_authors",
-            "original_year",
-            "item_count",
-            "cronbach_alpha",
-            "composite_reliability",
-            "ave",
-            "response_format",
-            "sample_size",
-            "sample_population",
-            "statistical_methods",
-            "research_design",
-            "page_number",
-        ]
-    )
+    writer.writerow(CSV_HEADERS[locale])
     for row in result.items:
         writer.writerow(
             [
