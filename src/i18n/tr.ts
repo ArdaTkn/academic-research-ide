@@ -299,4 +299,22 @@ export const tr: Record<TranslationKey, string> = {
   "style.filesLabel": "Veya Yerel Dosya Yolları (.md / .txt / .pdf — her satıra bir yol)",
   "style.extractSubmit": "Profil Çıkar & Aktifleştir",
   "style.extractFailed": "Stil profili çıkarılamadı.",
+
+  // Startup Readiness Gate
+  "startup.title": "Academic Research IDE Başlatılıyor",
+  "startup.subtitle": "Yerel Python FastAPI motoru, SQLite ve LanceDB vektör deposu hazırlanıyor...",
+  "startup.stage.sidecar": "Yerel arka uç (sidecar) başlatılıyor",
+  "startup.stage.storage": "SQLite (WAL/FTS5) & LanceDB hazırlanıyor",
+  "startup.stage.health": "/api/v1/health ucu doğrulanıyor",
+  "startup.waiting": "Yerel çalışma alanı hazırlanıyor (ilk açılışta genellikle 2–6 saniye sürer)...",
+  "startup.errorTitle": "Yerel Arka Uç Hazır Duruma Geçemedi",
+  "startup.errorTimeout": "Yerel arka uç sağlık kontrolü beklenirken zaman aşımı oluştu.",
+  "startup.modeLabel": "Çalışma Modu:",
+  "startup.endpointLabel": "Bağlantı Adresi:",
+  "startup.dataDirLabel": "Veri Dizini:",
+  "startup.logsToggleShow": "Arka Uç Günlüklerini Göster ({count})",
+  "startup.logsToggleHide": "Günlükleri Gizle",
+  "startup.noLogs": "Arka uç sürecinden yakalanan stderr/stdout kaydı bulunmuyor.",
+  "startup.retry": "Yeniden Dene ve Arka Ucu Başlat",
+  "startup.retrying": "Arka uç yeniden başlatılıyor...",
 };

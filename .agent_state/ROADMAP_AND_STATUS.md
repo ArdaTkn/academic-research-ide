@@ -15,10 +15,10 @@
 
 ## 2. Mevcut Durum Özeti
 
-- **Aktif Faz:** `Faz 0–5 Tamamlandı (Çok Dilli i18n EN/TR & İngilizce Açık Kaynak Deposu)`
-- **Son Güncelleyen Ajan:** `[Agent-Architect]`, `[Agent-Backend-NLP]`, `[Agent-Frontend-Core]`, `[Agent-Graph-Vis]`, `[Agent-Editor-Critic]`, `[Agent-QA-Reviewer]`
+- **Aktif Faz:** `Faz 0–5B Tamamlandı (Standalone Masaüstü Uygulaması + Çok Dilli i18n EN/TR)`
+- **Son Güncelleyen Ajan:** `[Agent-Architect]`, `[Agent-Backend-NLP]`, `[Agent-Frontend-Core]`, `[Agent-QA-Reviewer]`
 - **Tarih:** `2026-11-24`
-- **Sıradaki İlk Adım:** Tüm fazlar (Faz 0–5) tamamlandı ve doğrulandı; GitHub deposu güncel ve kullanıma hazır.
+- **Sıradaki İlk Adım:** Tüm fazlar (Faz 0–5B) tamamlandı ve doğrulandı; çift tıklamayla açılan standalone masaüstü paketi ve GitHub deposu güncel.
 
 ---
 
@@ -85,3 +85,9 @@
 - [x] Frontend i18n: `src/i18n/{en,tr,index}.ts` (birebir anahtar/parametre eşitliği ve yerelleştirilmiş sayı/tarih biçimleme), `useWorkspaceStore` + `localStorage` + `/api/v1/config` senkronizasyonu, `TopNavBar` (`EN / TR` canlı geçiş) ve `SettingsModal`, `IngestionSidebar`, `PaperDetailDrawer`, Sekme 1 (`graph-map/*`), Sekme 2 (`ScaleMatrixTab`), Sekme 3 (`draft-critic/*`) ile `client.ts`/`sse.ts` tam yerelleştirildi.
 - [x] Açık Kaynak İngilizce Dokümantasyon & Sözleşme Güncellemesi: Kök `README.md` (İngilizce, `English | Türkçe` geçişli) ve `README.tr.md` göreli yollarla yazıldı; `SCHEMA_AND_CONTRACTS.md`, `DECISION_LOG.md` (`ADR-015`) ve `.env.example` güncellendi.
 - [x] `[Agent-QA-Reviewer]` i18n & Final QA: Backend `pytest` 19/19 (`test_i18n_localization.py` dahil), Frontend `tsc --noEmit` (0 hata) + Vitest 14/14 (5 test dosyası, `i18n.test.tsx` dahil) + `vite build`, Tauri `cargo check` ve açık kaynak hijyen denetimi (0 kişisel yol/veritabanı/gizli anahtar sızıntısı) geçti.
+
+### Faz 5B — Standalone Masaüstü Paketleme (PyInstaller Sidecar, Tauri v2 Bundle & Başlangıç Hazırlık Kapısı) (`[Agent-Architect]`, `[Agent-Backend-NLP]`, `[Agent-Frontend-Core]`, `[Agent-QA-Reviewer]`)
+- [x] PyInstaller Standalone Sidecar (`backend/sidecar_main.py`, `backend/sidecar.spec`, `backend/app/db/sqlite.py` `_MEIPASS` şema çözünürlüğü, `scripts/build_sidecar.py`, `scripts/smoke_test_sidecar.py`): `FastAPI`, `SQLite/FTS5`, `LanceDB`, `PyMuPDF`, `pdfplumber` bağımlılıklarını tek ikili (`src-tauri/binaries/research-ide-backend-<target_triple>`) olarak derler ve `.gitignore` ile repo dışında tutar.
+- [x] Tauri v2 Sidecar & Üretim Paketi (`src-tauri/tauri.conf.json`, `src-tauri/src/lib.rs`, `src-tauri/icons/`): Hem geliştirme (`.venv`) hem üretim (`externalBin` sidecar) modları, Windows `CREATE_NO_WINDOW`, boş port seçimi, `PYTHONUTF8=1` + `app_data_dir()`, stdout/stderr tanılama günlüğü (`get_backend_diagnostics`, `restart_backend`) ve kapanışta kesin süreç/süreç-ağacı sonlandırma (`SIGTERM`/`SIGKILL` ve `taskkill /T /F`) sağlandı.
+- [x] Ön Yüz Başlangıç Kapısı (`src/components/StartupReadinessGate.tsx`, `src/App.tsx`): `/api/v1/health` hazır olana kadar iki dilli (`en`/`tr`) hazırlık ekranı, başarısızlıkta log görüntüleyici ve tek tıkla "Yeniden Dene & Arka Ucu Başlat" akışı eklendi.
+- [x] `[Agent-QA-Reviewer]` Standalone Doğrulama: PyInstaller build (`231.5 MiB` `research-ide-backend-aarch64-apple-darwin`) + `smoke_test_sidecar.py` (`exit 0`, `/health` + PyMuPDF + temiz SIGTERM), `pytest` (19/19), `tsc --noEmit` (0 hata) + Vitest (16/16, 6 dosya; `StartupReadinessGate.test.tsx` dahil) + `vite build`, `cargo check` ve gerçek macOS üretim derlemesi (`Academic Research IDE.app` `241.59 MiB` ve `Academic Research IDE_0.1.0_aarch64.dmg` `233.98 MiB`) doğrulandı.

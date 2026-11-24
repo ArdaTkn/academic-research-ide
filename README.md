@@ -91,14 +91,22 @@ cp .env.example .env
 ```
 Defaults point to local Ollama (`http://127.0.0.1:11434/v1`, `qwen2.5:14b`) and English UI (`RESEARCH_IDE_UI_LOCALE=en`), all editable in the **Model & Interface Settings** modal.
 
-### 5. Run the Application
+### 5. Run or Build Standalone Desktop App
 
-**Option A — Full Desktop App (Tauri v2 + Managed Python Sidecar):**
+**Option A — Standalone Production Desktop Installer (macOS `.app`/`.dmg`, Windows `.msi`/NSIS, Linux `.AppImage`/`.deb`):**
 ```bash
+# Compiles standalone Python FastAPI sidecar binary + Tauri v2 production bundle
+npm run build:desktop
+```
+
+**Option B — Tauri Desktop Dev Mode:**
+```bash
+# Build sidecar once so Tauri externalBin validation succeeds (required before first run)
+npm run build:sidecar
 npm run tauri dev
 ```
 
-**Option B — Separate Backend + Browser Dev Server:**
+**Option C — Separate Backend + Browser Dev Server:**
 ```bash
 # Terminal 1 (Backend)
 cd backend
@@ -115,6 +123,9 @@ npm run dev
 ```bash
 # Backend suite (SQLite, LanceDB, PDF/LLM fail-closed guards, Graph, Draft Critic, i18n, E2E)
 cd backend && .venv/bin/pytest -v
+
+# Standalone PyInstaller sidecar smoke test (boots compiled binary, checks /health, PyMuPDF, clean SIGTERM shutdown)
+backend/.venv/bin/python scripts/smoke_test_sidecar.py
 
 # Frontend typecheck, Vitest unit/component tests, and production bundle
 npm run typecheck
@@ -144,10 +155,15 @@ academic-research-ide/
 │   │   ├── pipeline/           # PDF extractor, LLM JSON extractor, normalizer & SSE worker
 │   │   └── services/           # GraphService, StyleService, CriticService
 │   ├── tests/                  # Pytest unit & E2E tests
+│   ├── sidecar_main.py         # PyInstaller standalone FastAPI entrypoint
+│   ├── sidecar.spec            # Cross-platform PyInstaller bundle configuration
 │   └── pyproject.toml
+├── scripts/
+│   ├── build_sidecar.py        # Builds standalone backend binary into src-tauri/binaries/
+│   └── smoke_test_sidecar.py   # End-to-end smoke test for compiled sidecar binary
 ├── src/
 │   ├── api/                    # Typed Fetch client + resilient SSE stream subscriber
-│   ├── components/             # TopNavBar, SettingsModal, PaperDetailDrawer
+│   ├── components/             # StartupReadinessGate, TopNavBar, SettingsModal, PaperDetailDrawer
 │   ├── features/
 │   │   ├── ingestion/          # PDF upload & live SSE paper pool sidebar
 │   │   ├── graph-map/          # Tab 1: React Flow + Dagre + Contradiction Comparison
@@ -156,7 +172,7 @@ academic-research-ide/
 │   ├── i18n/                   # Type-safe EN / TR dictionaries and formatting helpers
 │   ├── stores/                 # Cross-tab Zustand workspace store
 │   └── types/                  # TypeScript types aligned 1:1 with SCHEMA_AND_CONTRACTS.md
-├── src-tauri/                  # Tauri v2 Rust sidecar launcher & clean shutdown handler
+├── src-tauri/                  # Tauri v2 Rust sidecar launcher, binaries/ & clean shutdown handler
 ├── .env.example
 ├── .gitignore
 ├── LICENSE

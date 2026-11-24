@@ -449,3 +449,16 @@ export interface DeleteDraftResponse {
 export interface DismissFindingRequest {
   is_dismissed: boolean;
 }
+
+export type BackendSidecarMode = "bundled_sidecar" | "dev_python" | "external";
+export type BackendSidecarStatus = "starting" | "running" | "failed" | "stopped";
+
+export interface BackendDiagnostics {
+  base_url: string;
+  mode: BackendSidecarMode;
+  status: BackendSidecarStatus;
+  last_error: string | null;
+  data_dir: string;
+  logs: string[];
+  pid: number | null;
+}

@@ -297,6 +297,24 @@ export const en = {
   "style.filesLabel": "Or Local File Paths (.md / .txt / .pdf — one path per line)",
   "style.extractSubmit": "Extract & Activate Profile",
   "style.extractFailed": "Could not extract style profile.",
+
+  // Startup Readiness Gate
+  "startup.title": "Starting Academic Research IDE",
+  "startup.subtitle": "Initializing local Python FastAPI engine, SQLite, and LanceDB vector store...",
+  "startup.stage.sidecar": "Starting local backend sidecar",
+  "startup.stage.storage": "Initializing SQLite (WAL/FTS5) & LanceDB",
+  "startup.stage.health": "Verifying /api/v1/health endpoint",
+  "startup.waiting": "Preparing local workspace (typically 2–6 seconds on first launch)...",
+  "startup.errorTitle": "Local Backend Failed to Become Ready",
+  "startup.errorTimeout": "Timed out waiting for the local backend health check.",
+  "startup.modeLabel": "Execution Mode:",
+  "startup.endpointLabel": "Endpoint:",
+  "startup.dataDirLabel": "Data Directory:",
+  "startup.logsToggleShow": "Show Backend Logs ({count})",
+  "startup.logsToggleHide": "Hide Backend Logs",
+  "startup.noLogs": "No stderr/stdout logs captured from backend process.",
+  "startup.retry": "Retry & Restart Backend",
+  "startup.retrying": "Restarting backend...",
 } as const;
 
 export type TranslationKey = keyof typeof en;

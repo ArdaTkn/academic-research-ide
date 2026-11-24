@@ -32,6 +32,14 @@ dist-ssr/
 src-tauri/target/
 src-tauri/gen/
 
+# Standalone backend sidecar & PyInstaller artifacts
+backend/build/
+backend/dist/
+*.spec
+!backend/sidecar.spec
+src-tauri/binaries/*
+!src-tauri/binaries/.gitkeep
+
 # Coverage & Test outputs
 coverage/
 

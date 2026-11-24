@@ -1292,3 +1292,38 @@ Tüm `400`, `404`, `409`, `422`, `500`, `501`, `503` yanıtları şu zarfla dön
   "request_id": "req-uuid"
 }
 ```
+
+---
+
+## 7. Bölüm F — Tauri v2 IPC ve Standalone Sidecar Sözleşmesi
+
+### 7.1 Tauri Komutları (`src-tauri/src/lib.rs`)
+| Komut | Dönüş Tipi | Açıklama |
+|---|---|---|
+| `get_backend_url` | `String` | Dinamik veya tercih edilen `http://127.0.0.1:<port>/api/v1` adresi |
+| `get_backend_diagnostics` | `BackendDiagnostics` | Sidecar çalışma modu, durum, son hata, `data_dir`, PID ve sınırlı stdout/stderr günlükleri |
+| `restart_backend` | `BackendDiagnostics` | Çalışan sidecar sürecini temiz sonlandırıp yeni portta yeniden başlatır |
+
+```ts
+export type BackendSidecarMode = "bundled_sidecar" | "dev_python" | "external";
+export type BackendSidecarStatus = "starting" | "running" | "failed" | "stopped";
+
+export interface BackendDiagnostics {
+  base_url: string;
+  mode: BackendSidecarMode;
+  status: BackendSidecarStatus;
+  last_error: string | null;
+  data_dir: string;
+  logs: string[];
+  pid: number | null;
+}
+```
+
+### 7.2 PyInstaller Sidecar Adlandırma ve Ortam Kuralı
+- **Tauri `externalBin` yolu (`src-tauri/tauri.conf.json`):** `["binaries/research-ide-backend"]`
+- **Derlenen hedef ikili yolları (`src-tauri/binaries/`, `.gitignore` kapsamında):**
+  - macOS Apple Silicon: `research-ide-backend-aarch64-apple-darwin`
+  - macOS Intel: `research-ide-backend-x86_64-apple-darwin`
+  - Linux x86_64: `research-ide-backend-x86_64-unknown-linux-gnu`
+  - Windows x86_64: `research-ide-backend-x86_64-pc-windows-msvc.exe`
+- **Ortam değişkenleri:** `RESEARCH_IDE_DATA_DIR=<app_data_dir()>`, `RESEARCH_IDE_API_HOST=127.0.0.1`, `RESEARCH_IDE_API_PORT=<port>`, `PYTHONUTF8=1`, `PYTHONIOENCODING=utf-8`.

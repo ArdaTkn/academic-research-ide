@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import sys
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -54,7 +55,10 @@ class SQLiteDatabase:
 
     def __init__(self, db_path: Path) -> None:
         self.db_path = db_path
-        self._schema_path = Path(__file__).resolve().parent / "schema.sql"
+        default_schema = Path(__file__).resolve().parent / "schema.sql"
+        if not default_schema.exists() and hasattr(sys, "_MEIPASS"):
+            default_schema = Path(getattr(sys, "_MEIPASS")) / "app" / "db" / "schema.sql"
+        self._schema_path = default_schema
 
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:

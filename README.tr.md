@@ -91,14 +91,22 @@ cp .env.example .env
 ```
 Varsayılan ayarlar `http://127.0.0.1:11434/v1` (Ollama), `qwen2.5:14b` ve `RESEARCH_IDE_UI_LOCALE=en` olarak yapılandırılmıştır; uygulama içindeki **Model ve Arayüz Ayarları** penceresinden de güncellenebilir.
 
-### 5. Uygulamayı Çalıştırın
+### 5. Uygulamayı Çalıştırın veya Tek Tıklamalık Paket Üretin
 
-**Seçenek A — Tam Masaüstü Uygulaması (Tauri v2 + Otomatik Python Sidecar):**
+**Seçenek A — Bağımsız Üretim Kurulum Paketi (macOS `.app`/`.dmg`, Windows `.msi`/NSIS, Linux `.AppImage`/`.deb`):**
 ```bash
+# Standalone Python FastAPI sidecar binary + Tauri v2 üretim paketini derler
+npm run build:desktop
+```
+
+**Seçenek B — Tauri Masaüstü Geliştirme Modu:**
+```bash
+# İlk çalıştırma öncesi Tauri externalBin doğrulaması için sidecar ikilisini oluşturun
+npm run build:sidecar
 npm run tauri dev
 ```
 
-**Seçenek B — Ayrı Backend + Tarayıcı Geliştirme Modu:**
+**Seçenek C — Ayrı Backend + Tarayıcı Geliştirme Modu:**
 ```bash
 # Terminal 1 (Backend)
 cd backend
@@ -115,6 +123,9 @@ npm run dev
 ```bash
 # Backend testleri (SQLite, LanceDB, PDF/LLM dayanıklılık, Grafik, Taslak Denetçisi, i18n, E2E)
 cd backend && .venv/bin/pytest -v
+
+# Standalone PyInstaller sidecar smoke testi (/health, PyMuPDF ve temiz SIGTERM kapanması)
+backend/.venv/bin/python scripts/smoke_test_sidecar.py
 
 # Frontend tip kontrolü, Vitest testleri ve üretim derlemesi
 npm run typecheck

@@ -3,6 +3,7 @@ import type {
   AuditFinding,
   AuditParagraphRequest,
   AuditResult,
+  BackendDiagnostics,
   ConfigPatchRequest,
   ConfigResponse,
   ContradictionCluster,
@@ -85,6 +86,35 @@ export async function resolveApiBaseUrl(): Promise<string> {
   const resolved = (envUrl && envUrl.trim() ? envUrl.trim() : DEFAULT_API_BASE_URL).replace(/\/+$/, "");
   cachedBaseUrl = resolved;
   return resolved;
+}
+
+export async function getBackendDiagnostics(): Promise<BackendDiagnostics | null> {
+  if (typeof window !== "undefined" && "__TAURI_INTERNALS__" in window) {
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      return await invoke<BackendDiagnostics>("get_backend_diagnostics");
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+export async function restartBackend(): Promise<BackendDiagnostics | null> {
+  resetApiBaseUrlCache();
+  if (typeof window !== "undefined" && "__TAURI_INTERNALS__" in window) {
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const diag = await invoke<BackendDiagnostics>("restart_backend");
+      if (diag?.base_url) {
+        cachedBaseUrl = diag.base_url.replace(/\/+$/, "");
+      }
+      return diag;
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 async function parseErrorResponse(response: Response): Promise<ApiClientError> {
