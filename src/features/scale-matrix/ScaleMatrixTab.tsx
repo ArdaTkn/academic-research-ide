@@ -20,9 +20,10 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { apiClient, ApiClientError } from "@/api/client";
+import { GroundingBadge } from "@/components/GroundingBadge";
 import { useI18n } from "@/i18n";
 import { useWorkspaceStore } from "@/stores/useWorkspaceStore";
-import type { ScaleMatrixRow } from "@/types/contracts";
+import type { GroundingStatus, ScaleMatrixRow } from "@/types/contracts";
 
 const columnHelper = createColumnHelper<ScaleMatrixRow>();
 
@@ -39,6 +40,7 @@ export function ScaleMatrixTab() {
   const setMatrixFilters = useWorkspaceStore((s) => s.setMatrixFilters);
   const resetMatrixFilters = useWorkspaceStore((s) => s.resetMatrixFilters);
   const focusPaperDetail = useWorkspaceStore((s) => s.focusPaperDetail);
+  const openPdfAtPage = useWorkspaceStore((s) => s.openPdfAtPage);
 
   const formatDecimal = (value: number | null, digits = 2): string =>
     value === null || value === undefined
@@ -96,7 +98,15 @@ export function ScaleMatrixTab() {
         const row = info.row.original;
         return (
           <div className="min-w-[200px]">
-            <div className="font-medium text-slate-900">{row.scale_name}</div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="font-medium text-slate-900">{row.scale_name}</span>
+              <GroundingBadge
+                compact
+                status={row.grounding_status}
+                score={row.grounding_score}
+                note={row.grounding_note}
+              />
+            </div>
             <div className="mt-0.5 text-[11px] text-slate-500">
               {row.original_authors ?? t("matrix.originalSourceMissing")}
               {row.original_year ? ` (${row.original_year})` : ""}
@@ -237,11 +247,26 @@ export function ScaleMatrixTab() {
         return (
           <div className="max-w-[240px]">
             <div className="line-clamp-2 text-xs font-medium text-slate-900">{row.paper_title}</div>
-            <div className="mt-0.5 text-[11px] text-slate-500">
-              {row.authors[0] ?? t("common.dash")} · {row.year ?? t("common.dash")} ·{" "}
-              <span className="font-medium text-slate-700 tabular-nums">
-                {t("common.pageShort", { page: row.page_number })}
+            <div className="mt-0.5 flex flex-wrap items-center gap-1 text-[11px] text-slate-500">
+              <span>
+                {row.authors[0] ?? t("common.dash")} · {row.year ?? t("common.dash")} ·
               </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openPdfAtPage(
+                    row.paper_id,
+                    row.page_number,
+                    row.quote_snippet ?? row.scale_name,
+                    row.paper_title,
+                  );
+                }}
+                title={t("pdfReader.openAtPage", { page: row.page_number })}
+                className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.2 font-medium text-indigo-700 tabular-nums hover:border-indigo-300 hover:bg-indigo-50"
+              >
+                {t("common.pageShort", { page: row.page_number })}
+              </button>
             </div>
           </div>
         );
@@ -282,6 +307,7 @@ export function ScaleMatrixTab() {
     matrixFilters.min_alpha !== null && matrixFilters.min_alpha !== undefined,
     matrixFilters.min_sample_size !== null && matrixFilters.min_sample_size !== undefined,
     Boolean(matrixFilters.statistical_method),
+    Boolean(matrixFilters.grounding_status),
     matrixFilters.year_from !== null && matrixFilters.year_from !== undefined,
     matrixFilters.year_to !== null && matrixFilters.year_to !== undefined,
   ].filter(Boolean).length;
@@ -448,6 +474,24 @@ export function ScaleMatrixTab() {
                 placeholder={t("matrix.yearMaxPlaceholder")}
                 className="w-16 rounded border border-slate-200 px-1.5 py-0.5 text-[11px] tabular-nums text-slate-800"
               />
+            </div>
+
+            <div className="ml-2 flex items-center gap-1 text-[11px] text-slate-500">
+              <span>{t("grounding.filterLabel")}</span>
+              <select
+                aria-label={t("grounding.filterLabel")}
+                value={matrixFilters.grounding_status ?? ""}
+                onChange={(e) => {
+                  const val = e.target.value as GroundingStatus | "";
+                  setMatrixFilters({ grounding_status: val === "" ? null : val });
+                }}
+                className="rounded border border-slate-200 bg-white px-2 py-0.5 text-[11px] text-slate-800 focus:border-indigo-500 focus:outline-none"
+              >
+                <option value="">{t("grounding.filterAll")}</option>
+                <option value="verified">{t("grounding.verified")}</option>
+                <option value="partial">{t("grounding.partial")}</option>
+                <option value="unverified">{t("grounding.unverified")}</option>
+              </select>
             </div>
           </div>
 

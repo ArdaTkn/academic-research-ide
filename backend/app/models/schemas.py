@@ -71,6 +71,12 @@ class JobStatus(StrEnum):
     FAILED = "failed"
 
 
+class GroundingStatus(StrEnum):
+    VERIFIED = "verified"
+    PARTIAL = "partial"
+    UNVERIFIED = "unverified"
+
+
 class ContractModel(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
@@ -114,6 +120,9 @@ class Claim(ContractModel):
     page_number: int = Field(ge=1)
     section_name: str | None = None
     quote_snippet: str | None = None
+    grounding_status: GroundingStatus = GroundingStatus.UNVERIFIED
+    grounding_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    grounding_note: str | None = None
     confidence_score: float = Field(ge=0.0, le=1.0)
     created_at: str
 
@@ -156,6 +165,9 @@ class Relationship(ContractModel):
     sample_subgroup: str | None = None
     page_number: int = Field(ge=1)
     quote_snippet: str | None = None
+    grounding_status: GroundingStatus = GroundingStatus.UNVERIFIED
+    grounding_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    grounding_note: str | None = None
     confidence_score: float = Field(ge=0.0, le=1.0)
     created_at: str
 
@@ -176,6 +188,10 @@ class Scale(ContractModel):
     sample_size_override: int | None = Field(default=None, ge=0)
     adaptation_notes: str | None = None
     page_number: int = Field(ge=1)
+    quote_snippet: str | None = None
+    grounding_status: GroundingStatus = GroundingStatus.UNVERIFIED
+    grounding_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    grounding_note: str | None = None
     created_at: str
 
 
@@ -333,6 +349,7 @@ class ExtractedScale(ContractModel):
     sample_size_override: int | None = Field(default=None, ge=0)
     adaptation_notes: str | None = None
     page_number: int = Field(ge=1)
+    quote_snippet: str | None = None
 
     @field_validator("name")
     @classmethod
@@ -416,6 +433,9 @@ class ContradictionPaperSide(ContractModel):
     p_value: str | None = None
     page_number: int = Field(ge=1)
     quote_snippet: str | None = None
+    grounding_status: GroundingStatus = GroundingStatus.UNVERIFIED
+    grounding_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    grounding_note: str | None = None
 
 
 class ContradictionCluster(ContractModel):
@@ -456,6 +476,10 @@ class ScaleMatrixRow(ContractModel):
     statistical_methods: list[str] = Field(default_factory=list)
     research_design: str | None = None
     page_number: int = Field(ge=1)
+    quote_snippet: str | None = None
+    grounding_status: GroundingStatus = GroundingStatus.UNVERIFIED
+    grounding_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    grounding_note: str | None = None
 
 
 class ScaleMatrixFilter(ContractModel):
@@ -467,10 +491,32 @@ class ScaleMatrixFilter(ContractModel):
     statistical_method: str | None = None
     year_from: int | None = Field(default=None, ge=1800, le=2100)
     year_to: int | None = Field(default=None, ge=1800, le=2100)
+    grounding_status: GroundingStatus | None = None
     sort_by: str = "year"
     sort_dir: Literal["asc", "desc"] = "desc"
     limit: int = Field(default=50, ge=1, le=500)
     offset: int = Field(default=0, ge=0)
+
+
+class PdfHighlightBox(ContractModel):
+    x: float = Field(ge=0.0, le=1.0)
+    y: float = Field(ge=0.0, le=1.0)
+    w: float = Field(ge=0.0, le=1.0)
+    h: float = Field(ge=0.0, le=1.0)
+
+
+class PdfPageRenderResponse(ContractModel):
+    paper_id: str
+    paper_title: str
+    page_number: int = Field(ge=1)
+    page_count: int = Field(ge=1)
+    width: float = Field(gt=0.0)
+    height: float = Field(gt=0.0)
+    image_data_url: str
+    page_text: str
+    quote_query: str | None = None
+    match_found: bool = False
+    highlights: list[PdfHighlightBox] = Field(default_factory=list)
 
 
 class ScaleMatrixResponse(ContractModel):

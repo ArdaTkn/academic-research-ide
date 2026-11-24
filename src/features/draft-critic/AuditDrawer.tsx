@@ -72,6 +72,7 @@ export function AuditDrawer({
 }: AuditDrawerProps) {
   const { t } = useI18n();
   const focusPaperDetail = useWorkspaceStore((s) => s.focusPaperDetail);
+  const openPdfAtPage = useWorkspaceStore((s) => s.openPdfAtPage);
   const [showDismissed, setShowDismissed] = useState(false);
 
   const visibleFindings = (auditResult?.findings ?? []).filter(
@@ -201,11 +202,27 @@ export function AuditDrawer({
                         <span className={`rounded border px-2 py-0.5 text-[10px] font-semibold ${meta.badge}`}>
                           {t(meta.key)}
                         </span>
-                        {finding.page_number !== null && (
-                          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700 tabular-nums">
-                            {t("common.pageShort", { page: finding.page_number })}
-                          </span>
-                        )}
+                        {finding.page_number !== null &&
+                          (finding.related_paper_id ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openPdfAtPage(
+                                  finding.related_paper_id!,
+                                  finding.page_number!,
+                                  finding.quote_snippet ?? finding.excerpt,
+                                )
+                              }
+                              title={t("pdfReader.openAtPage", { page: finding.page_number })}
+                              className="rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700 tabular-nums hover:border-indigo-300 hover:bg-indigo-50"
+                            >
+                              {t("common.pageShort", { page: finding.page_number })}
+                            </button>
+                          ) : (
+                            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700 tabular-nums">
+                              {t("common.pageShort", { page: finding.page_number })}
+                            </span>
+                          ))}
                       </div>
 
                       <div className="mt-2 rounded bg-slate-50 px-2.5 py-1.5 text-[11px] text-slate-700">

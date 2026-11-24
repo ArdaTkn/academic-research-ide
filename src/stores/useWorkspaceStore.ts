@@ -101,11 +101,19 @@ export const DEFAULT_MATRIX_FILTERS: ScaleMatrixFilter = {
   statistical_method: null,
   year_from: null,
   year_to: null,
+  grounding_status: null,
   sort_by: "year",
   sort_dir: "desc",
   limit: 25,
   offset: 0,
 };
+
+export interface PdfViewerTarget {
+  paperId: string;
+  pageNumber: number;
+  quote?: string | null;
+  paperTitle?: string | null;
+}
 
 interface WorkspaceState {
   locale: UiLocale;
@@ -122,6 +130,7 @@ interface WorkspaceState {
   graphFilters: GraphFilterState;
   activeJobs: Record<string, IngestionJob>;
   matrixFilters: ScaleMatrixFilter;
+  pdfViewer: PdfViewerTarget | null;
   isSettingsOpen: boolean;
   isSidebarCollapsed: boolean;
 
@@ -146,6 +155,14 @@ interface WorkspaceState {
   focusVariableInMatrix: (variableId: string | null) => void;
   focusVariableInGraph: (variableId: string | null) => void;
   focusPaperDetail: (paperId: string | null, scaleId?: string | null) => void;
+  openPdfAtPage: (
+    paperId: string,
+    pageNumber: number,
+    quote?: string | null,
+    paperTitle?: string | null,
+  ) => void;
+  setPdfViewerPage: (pageNumber: number) => void;
+  closePdfViewer: () => void;
   setSettingsOpen: (open: boolean) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
 }
@@ -165,6 +182,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   graphFilters: { ...DEFAULT_GRAPH_FILTERS },
   activeJobs: {},
   matrixFilters: { ...DEFAULT_MATRIX_FILTERS },
+  pdfViewer: null,
   isSettingsOpen: false,
   isSidebarCollapsed: false,
 
@@ -257,6 +275,29 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
       selectedPaperId: paperId,
       selectedScaleId: scaleId,
     }),
+
+  openPdfAtPage: (paperId, pageNumber, quote = null, paperTitle = null) =>
+    set({
+      pdfViewer: {
+        paperId,
+        pageNumber: Math.max(1, Math.floor(pageNumber || 1)),
+        quote: quote ?? null,
+        paperTitle: paperTitle ?? null,
+      },
+    }),
+
+  setPdfViewerPage: (pageNumber) =>
+    set((state) => {
+      if (!state.pdfViewer) return state;
+      return {
+        pdfViewer: {
+          ...state.pdfViewer,
+          pageNumber: Math.max(1, Math.floor(pageNumber || 1)),
+        },
+      };
+    }),
+
+  closePdfViewer: () => set({ pdfViewer: null }),
 
   setSettingsOpen: (isSettingsOpen) => set({ isSettingsOpen }),
   setSidebarCollapsed: (isSidebarCollapsed) => set({ isSidebarCollapsed }),

@@ -88,7 +88,8 @@ JSON SCHEMA SHAPE:
       "language": "string | null",
       "sample_size_override": null,
       "adaptation_notes": "string | null",
-      "page_number": 4
+      "page_number": 4,
+      "quote_snippet": "string | null"
     }
   ],
   "claims": [

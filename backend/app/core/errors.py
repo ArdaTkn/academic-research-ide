@@ -146,6 +146,9 @@ _ERROR_CODE_I18N_KEYS: dict[str, str] = {
     "STYLE_PROFILE_NOT_FOUND": "err.style_profile_not_found",
     "AUDIT_FINDING_NOT_FOUND": "err.audit_finding_not_found",
     "DUPLICATE_PAPER": "err.duplicate_paper",
+    "PDF_FILE_MISSING": "err.pdf_file_missing",
+    "PDF_PAGE_OUT_OF_RANGE": "err.pdf_page_out_of_range",
+    "PDF_RENDER_FAILED": "err.pdf_render_failed",
 }
 
 

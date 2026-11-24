@@ -26,6 +26,7 @@ hiddenimports = [
     "app.db.sqlite",
     "app.db.vector_store",
     "app.models.schemas",
+    "app.pipeline.grounding",
     "app.pipeline.llm_extractor",
     "app.pipeline.normalizer",
     "app.pipeline.pdf_extractor",

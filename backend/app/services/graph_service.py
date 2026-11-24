@@ -11,6 +11,7 @@ from app.models.schemas import (
     GraphEdge,
     GraphNode,
     GraphResponse,
+    GroundingStatus,
     RelationshipDirection,
     ResearchGap,
     VariableRole,
@@ -160,6 +161,9 @@ class GraphService:
                             p_value=r["p_value"],
                             page_number=r["page_number"],
                             quote_snippet=r["quote_snippet"],
+                            grounding_status=GroundingStatus(r.get("grounding_status") or "unverified"),
+                            grounding_score=float(r.get("grounding_score") if r.get("grounding_score") is not None else 0.0),
+                            grounding_note=r.get("grounding_note"),
                         )
                     )
                 contradictions.append(

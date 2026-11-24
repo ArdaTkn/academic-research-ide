@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse, Response
 from app.api.deps import get_repo, get_request_locale
 from app.core.i18n import CSV_HEADERS, Locale
 from app.db.sqlite import ResearchRepository
-from app.models.schemas import MethodCountItem, ScaleMatrixFilter, ScaleMatrixResponse
+from app.models.schemas import GroundingStatus, MethodCountItem, ScaleMatrixFilter, ScaleMatrixResponse
 
 router = APIRouter(tags=["matrix"])
 
@@ -25,6 +25,7 @@ def _build_filter(
     statistical_method: str | None,
     year_from: int | None,
     year_to: int | None,
+    grounding_status: GroundingStatus | None,
     sort_by: str,
     sort_dir: Literal["asc", "desc"],
     limit: int,
@@ -39,6 +40,7 @@ def _build_filter(
         statistical_method=statistical_method,
         year_from=year_from,
         year_to=year_to,
+        grounding_status=grounding_status,
         sort_by=sort_by,
         sort_dir=sort_dir,
         limit=limit,
@@ -56,6 +58,7 @@ def get_scale_matrix(
     statistical_method: str | None = Query(default=None),
     year_from: int | None = Query(default=None, ge=1800, le=2100),
     year_to: int | None = Query(default=None, ge=1800, le=2100),
+    grounding_status: GroundingStatus | None = Query(default=None),
     sort_by: str = Query(default="year"),
     sort_dir: Literal["asc", "desc"] = Query(default="desc"),
     limit: int = Query(default=50, ge=1, le=500),
@@ -71,6 +74,7 @@ def get_scale_matrix(
         statistical_method=statistical_method,
         year_from=year_from,
         year_to=year_to,
+        grounding_status=grounding_status,
         sort_by=sort_by,
         sort_dir=sort_dir,
         limit=limit,
@@ -97,6 +101,7 @@ def export_scale_matrix(
     statistical_method: str | None = Query(default=None),
     year_from: int | None = Query(default=None, ge=1800, le=2100),
     year_to: int | None = Query(default=None, ge=1800, le=2100),
+    grounding_status: GroundingStatus | None = Query(default=None),
     sort_by: str = Query(default="year"),
     sort_dir: Literal["asc", "desc"] = Query(default="desc"),
     locale: Locale = Depends(get_request_locale),
@@ -111,6 +116,7 @@ def export_scale_matrix(
         statistical_method=statistical_method,
         year_from=year_from,
         year_to=year_to,
+        grounding_status=grounding_status,
         sort_by=sort_by,
         sort_dir=sort_dir,
         limit=500,

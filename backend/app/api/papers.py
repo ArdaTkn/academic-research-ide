@@ -1,16 +1,18 @@
 from __future__ import annotations
 
+import base64
 import uuid
 from pathlib import Path
 
+import pymupdf
 from fastapi import APIRouter, Depends, Query, Request, UploadFile, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import ValidationError
 
 from app.api.deps import get_ingestion_manager, get_repo, get_request_locale, get_settings, get_vector_store
 from app.core.config import Settings
-from app.core.errors import BadRequestError
-from app.core.i18n import Locale
+from app.core.errors import BadRequestError, NotFoundError, PDFExtractionError
+from app.core.i18n import Locale, t
 from app.db.sqlite import ResearchRepository
 from app.db.vector_store import VectorStore
 from app.models.schemas import (
@@ -21,7 +23,10 @@ from app.models.schemas import (
     PaginatedResponse,
     Paper,
     PaperDetailResponse,
+    PdfHighlightBox,
+    PdfPageRenderResponse,
 )
+from app.pipeline.grounding import normalize_for_matching
 from app.pipeline.worker import IngestionManager
 
 router = APIRouter(tags=["papers"])
@@ -111,6 +116,126 @@ def get_paper_detail(
     repo: ResearchRepository = Depends(get_repo),
 ) -> PaperDetailResponse:
     return repo.get_paper_detail(paper_id)
+
+
+def _search_quote_boxes(page_obj: pymupdf.Page, quote: str) -> list[pymupdf.Rect]:
+    """Find highlight rectangles on a PDF page for exact or wrapped quote phrases."""
+    cleaned = " ".join(quote.split()).strip(" \"'`.,;:")
+    if not cleaned:
+        return []
+
+    rects = page_obj.search_for(cleaned)
+    if rects:
+        return rects
+
+    words = cleaned.split()
+    if len(words) <= 5:
+        return []
+
+    matched: list[pymupdf.Rect] = []
+    window = 5
+    for idx in range(0, max(1, len(words) - window + 1), 3):
+        phrase = " ".join(words[idx : idx + window])
+        hits = page_obj.search_for(phrase)
+        if hits:
+            matched.extend(hits)
+    return matched
+
+
+@router.get("/papers/{paper_id}/file")
+def get_paper_pdf_file(
+    paper_id: str,
+    locale: Locale = Depends(get_request_locale),
+    repo: ResearchRepository = Depends(get_repo),
+) -> FileResponse:
+    paper = repo.get_paper(paper_id)
+    pdf_path = Path(paper.file_path)
+    if not pdf_path.exists() or not pdf_path.is_file():
+        raise NotFoundError(
+            error_code="PDF_FILE_MISSING",
+            message=t(locale, "err.pdf_file_missing"),
+            details={"paper_id": paper_id, "file_path": paper.file_path},
+        )
+    return FileResponse(path=pdf_path, media_type="application/pdf", filename=pdf_path.name)
+
+
+@router.get("/papers/{paper_id}/page-render", response_model=PdfPageRenderResponse)
+def render_paper_pdf_page(
+    paper_id: str,
+    page: int = Query(default=1, ge=1),
+    quote: str | None = Query(default=None),
+    zoom: float = Query(default=2.0, ge=0.75, le=3.5),
+    locale: Locale = Depends(get_request_locale),
+    repo: ResearchRepository = Depends(get_repo),
+) -> PdfPageRenderResponse:
+    paper = repo.get_paper(paper_id)
+    pdf_path = Path(paper.file_path)
+    if not pdf_path.exists() or not pdf_path.is_file():
+        raise NotFoundError(
+            error_code="PDF_FILE_MISSING",
+            message=t(locale, "err.pdf_file_missing"),
+            details={"paper_id": paper_id, "file_path": paper.file_path},
+        )
+
+    try:
+        pdf_doc = pymupdf.open(str(pdf_path))
+    except Exception as exc:
+        raise PDFExtractionError(
+            error_code="PDF_RENDER_FAILED",
+            message=t(locale, "err.pdf_render_failed"),
+            details={"paper_id": paper_id, "error": str(exc)},
+        ) from exc
+
+    try:
+        total_pages = max(1, int(pdf_doc.page_count))
+        if page < 1 or page > total_pages:
+            raise BadRequestError(
+                error_code="PDF_PAGE_OUT_OF_RANGE",
+                message=t(locale, "err.pdf_page_out_of_range"),
+                details={"paper_id": paper_id, "page_number": page, "page_count": total_pages},
+            )
+
+        page_obj = pdf_doc[page - 1]
+        rect = page_obj.rect
+        page_w = max(1.0, float(rect.width))
+        page_h = max(1.0, float(rect.height))
+        page_text = page_obj.get_text("text") or ""
+
+        raw_rects = _search_quote_boxes(page_obj, quote) if quote else []
+        highlights: list[PdfHighlightBox] = []
+        for r in raw_rects[:24]:
+            x = max(0.0, min(1.0, float(r.x0) / page_w))
+            y = max(0.0, min(1.0, float(r.y0) / page_h))
+            w = max(0.0, min(1.0 - x, float(r.x1 - r.x0) / page_w))
+            h = max(0.0, min(1.0 - y, float(r.y1 - r.y0) / page_h))
+            if w > 0.0 and h > 0.0:
+                highlights.append(PdfHighlightBox(x=round(x, 5), y=round(y, 5), w=round(w, 5), h=round(h, 5)))
+
+        match_found = bool(highlights)
+        if not match_found and quote:
+            nq = normalize_for_matching(quote)
+            if nq and nq in normalize_for_matching(page_text):
+                match_found = True
+
+        pix = page_obj.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), alpha=False)
+        png_b64 = base64.b64encode(pix.tobytes("png")).decode("ascii")
+        data_url = f"data:image/png;base64,{png_b64}"
+
+        return PdfPageRenderResponse(
+            paper_id=paper.id,
+            paper_title=paper.title,
+            page_number=page,
+            page_count=total_pages,
+            width=page_w,
+            height=page_h,
+            image_data_url=data_url,
+            page_text=page_text,
+            quote_query=quote,
+            match_found=match_found,
+            highlights=highlights,
+        )
+    finally:
+        pdf_doc.close()
 
 
 @router.delete("/papers/{paper_id}", response_model=DeletePaperResponse)

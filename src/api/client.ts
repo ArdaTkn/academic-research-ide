@@ -20,6 +20,7 @@ import type {
   PaginatedResponse,
   Paper,
   PaperDetailResponse,
+  PdfPageRenderResponse,
   RelationshipDirection,
   ResearchGap,
   ScaleMatrixFilter,
@@ -191,6 +192,9 @@ export function buildMatrixQueryParams(filters: ScaleMatrixFilter): URLSearchPar
   if (filters.year_to !== undefined && filters.year_to !== null) {
     params.set("year_to", String(filters.year_to));
   }
+  if (filters.grounding_status) {
+    params.set("grounding_status", filters.grounding_status);
+  }
   if (filters.sort_by) params.set("sort_by", filters.sort_by);
   if (filters.sort_dir) params.set("sort_dir", filters.sort_dir);
   if (filters.limit !== undefined) params.set("limit", String(filters.limit));
@@ -255,6 +259,24 @@ export const apiClient = {
 
   getPaperDetail(paper_id: string): Promise<PaperDetailResponse> {
     return requestJson<PaperDetailResponse>(`/papers/${encodeURIComponent(paper_id)}`);
+  },
+
+  getPaperPageRender(
+    paper_id: string,
+    page: number,
+    options?: { quote?: string | null; zoom?: number },
+  ): Promise<PdfPageRenderResponse> {
+    const qs = new URLSearchParams();
+    qs.set("page", String(Math.max(1, Math.floor(page))));
+    if (options?.quote && options.quote.trim()) {
+      qs.set("quote", options.quote.trim());
+    }
+    if (options?.zoom !== undefined) {
+      qs.set("zoom", String(options.zoom));
+    }
+    return requestJson<PdfPageRenderResponse>(
+      `/papers/${encodeURIComponent(paper_id)}/page-render?${qs.toString()}`,
+    );
   },
 
   deletePaper(paper_id: string): Promise<DeletePaperResponse> {

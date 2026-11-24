@@ -10,6 +10,7 @@ from app.core.i18n import Locale, t
 from app.db.sqlite import ResearchRepository, utc_now_iso
 from app.db.vector_store import EmbeddingProvider, VectorStore
 from app.models.schemas import IngestionJob, IngestionStatus, JobStatus
+from app.pipeline.grounding import ground_extraction_payload
 from app.pipeline.llm_extractor import LLMExtractor, validate_payload_against_document
 from app.pipeline.pdf_extractor import chunk_document, extract_pdf
 
@@ -136,10 +137,12 @@ class IngestionManager:
 
             payload = await self.llm_extractor.extract(doc)
             validate_payload_against_document(payload, doc.page_count)
+            grounding = ground_extraction_payload(payload, doc)
 
             self.repo.persist_validated_extraction(
                 paper_id=paper_id,
                 payload=payload,
+                grounding=grounding,
                 status=IngestionStatus.PROCESSING,
             )
 

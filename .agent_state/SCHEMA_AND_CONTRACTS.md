@@ -65,6 +65,10 @@ CREATE TABLE IF NOT EXISTS claims (
     page_number INTEGER NOT NULL CHECK (page_number >= 1),
     section_name TEXT,
     quote_snippet TEXT,
+    grounding_status TEXT NOT NULL DEFAULT 'unverified'
+        CHECK (grounding_status IN ('verified', 'partial', 'unverified')),
+    grounding_score REAL NOT NULL DEFAULT 0.0 CHECK (grounding_score >= 0.0 AND grounding_score <= 1.0),
+    grounding_note TEXT,
     confidence_score REAL NOT NULL DEFAULT 0.8 CHECK (confidence_score >= 0.0 AND confidence_score <= 1.0),
     created_at TEXT NOT NULL
 );
@@ -115,6 +119,10 @@ CREATE TABLE IF NOT EXISTS relationships (
     sample_subgroup TEXT,
     page_number INTEGER NOT NULL CHECK (page_number >= 1),
     quote_snippet TEXT,
+    grounding_status TEXT NOT NULL DEFAULT 'unverified'
+        CHECK (grounding_status IN ('verified', 'partial', 'unverified')),
+    grounding_score REAL NOT NULL DEFAULT 0.0 CHECK (grounding_score >= 0.0 AND grounding_score <= 1.0),
+    grounding_note TEXT,
     confidence_score REAL NOT NULL DEFAULT 0.8 CHECK (confidence_score >= 0.0 AND confidence_score <= 1.0),
     created_at TEXT NOT NULL
 );
@@ -136,6 +144,11 @@ CREATE TABLE IF NOT EXISTS scales (
     sample_size_override INTEGER CHECK (sample_size_override IS NULL OR sample_size_override >= 0),
     adaptation_notes TEXT,
     page_number INTEGER NOT NULL CHECK (page_number >= 1),
+    quote_snippet TEXT,
+    grounding_status TEXT NOT NULL DEFAULT 'unverified'
+        CHECK (grounding_status IN ('verified', 'partial', 'unverified')),
+    grounding_score REAL NOT NULL DEFAULT 0.0 CHECK (grounding_score >= 0.0 AND grounding_score <= 1.0),
+    grounding_note TEXT,
     created_at TEXT NOT NULL
 );
 
@@ -1248,7 +1261,9 @@ export interface DismissFindingRequest {
 | `GET` | `/api/v1/jobs/{job_id}` | — | `IngestionJob` | İşlem durumu ve ilerleme yüzdesi |
 | `GET` | `/api/v1/jobs/{job_id}/stream` | — | `text/event-stream` (SSE `IngestionJob` eventleri) | Gerçek zamanlı pipeline aşama yayını |
 | `GET` | `/api/v1/papers` | Query: `status`, `search`, `limit`, `offset` | `PaginatedResponse[Paper]` | Makale havuzu listesi |
-| `GET` | `/api/v1/papers/{paper_id}` | — | `{ paper: Paper, variables: PaperVariable[], relationships: Relationship[], scales: Scale[], claims: Claim[] }` | Makale tam detayı |
+| `GET` | `/api/v1/papers/{paper_id}` | — | `{ paper: Paper, variables: PaperVariable[], relationships: Relationship[], scales: Scale[], claims: Claim[] }` | Makale tam detayı (Faz 6 grounding alanlarıyla) |
+| `GET` | `/api/v1/papers/{paper_id}/file` | — | `application/pdf` (`FileResponse`) | Yerel PDF dosyasını sunar (dosya eksikse `404 PDF_FILE_MISSING`) |
+| `GET` | `/api/v1/papers/{paper_id}/page-render` | Query: `page=N`, `quote` (ops.), `zoom` (0.75–3.5) | `PdfPageRenderResponse` (`image_data_url`, `highlights`, `page_text`, `match_found`) | Belirtilen PDF sayfasını PNG ve normalize alıntı vurgularıyla döner |
 | `DELETE` | `/api/v1/papers/{paper_id}` | — | `{ deleted: true, paper_id: string }` | SQLite cascade + LanceDB chunk temizliği |
 | `POST` | `/api/v1/papers/{paper_id}/reprocess` | — | `IngestionJob` (`202 Accepted`) | Makaleyi yeniden ayrıştırır |
 
@@ -1263,9 +1278,9 @@ export interface DismissFindingRequest {
 ### 6.4 Sekme 2 — Ölçek & Yöntem Matrisi
 | Metot | Yol | İstek / Query | Yanıt | Açıklama |
 |---|---|---|---|---|
-| `GET` | `/api/v1/matrix/scales` | `ScaleMatrixFilter` query parametreleri | `ScaleMatrixResponse` | Filtrelenebilir, sıralanabilir ölçek ve yöntem tablosu |
+| `GET` | `/api/v1/matrix/scales` | `ScaleMatrixFilter` query parametreleri (`grounding_status` dahil) | `ScaleMatrixResponse` | Filtrelenebilir, sıralanabilir ölçek, doğrulama ve yöntem tablosu |
 | `GET` | `/api/v1/matrix/methods` | — | `Array<{ method: string, count: number }>` | Filtre açılır menüsü için tekil istatistiksel yöntem sayımları |
-| `GET` | `/api/v1/matrix/export` | `format=csv\|json`, `locale=en\|tr` + `ScaleMatrixFilter` | İndirilebilir `text/csv` veya `application/json` | Matris dışa aktarımı (CSV sütun başlıkları `locale` ile yerelleştirilir) |
+| `GET` | `/api/v1/matrix/export` | `format=csv\|json`, `locale=en\|tr`, `grounding_status` + `ScaleMatrixFilter` | İndirilebilir `text/csv` veya `application/json` | Matris dışa aktarımı (CSV sütun başlıkları `locale` ile yerelleştirilir) |
 
 ### 6.5 Sekme 3 — Taslak, Stil Profili & Kanıt/Çelişki Denetçisi
 | Metot | Yol | İstek | Yanıt | Açıklama |
@@ -1327,3 +1342,33 @@ export interface BackendDiagnostics {
   - Linux x86_64: `research-ide-backend-x86_64-unknown-linux-gnu`
   - Windows x86_64: `research-ide-backend-x86_64-pc-windows-msvc.exe`
 - **Ortam değişkenleri:** `RESEARCH_IDE_DATA_DIR=<app_data_dir()>`, `RESEARCH_IDE_API_HOST=127.0.0.1`, `RESEARCH_IDE_API_PORT=<port>`, `PYTHONUTF8=1`, `PYTHONIOENCODING=utf-8`.
+
+---
+
+## 8. Bölüm G — Grounding Check & Split-View PDF Reader Sözleşmesi (Faz 6)
+
+```ts
+export type GroundingStatus = "verified" | "partial" | "unverified";
+
+export interface PdfHighlightBox {
+  x: number; // 0..1 relative to page width
+  y: number; // 0..1 relative to page height
+  w: number; // 0..1 relative width
+  h: number; // 0..1 relative height
+}
+
+export interface PdfPageRenderResponse {
+  paper_id: string;
+  paper_title: string;
+  page_number: number;
+  page_count: number;
+  width: number;
+  height: number;
+  image_data_url: string;
+  page_text: string;
+  quote_query: string | null;
+  match_found: boolean;
+  highlights: PdfHighlightBox[];
+}
+```
+- `Claim`, `Relationship`, `Scale`, `ContradictionPaperSide` ve `ScaleMatrixRow` modelleri `grounding_status`, `grounding_score` (`0.0–1.0`) ve `grounding_note` (`exact_quote_match`, `high_similarity_quote_match`, `partial_quote_match`, `quote_found_on_other_page:<N>`, `quote_not_found_on_page`, `missing_quote_snippet`, `no_quote_anchor_matched`, `scale_name_matched_on_page`, `partial_scale_match`, `scale_not_found_on_page`, `page_out_of_range`) alanlarını taşır; `Scale`, `ExtractedScale` ve `ScaleMatrixRow` ek olarak opsiyonel `quote_snippet` alanı destekler.

@@ -1,4 +1,5 @@
 import { PaperDetailDrawer } from "@/components/PaperDetailDrawer";
+import { PdfReaderPanel } from "@/components/PdfReaderPanel";
 import { SettingsModal } from "@/components/SettingsModal";
 import { StartupReadinessGate } from "@/components/StartupReadinessGate";
 import { TopNavBar } from "@/components/TopNavBar";
@@ -24,6 +25,8 @@ export default function App() {
             {activeTab === "graph" && <GraphMapTab />}
             {activeTab === "draft" && <DraftCriticTab />}
           </main>
+
+          <PdfReaderPanel />
         </div>
 
         <PaperDetailDrawer />

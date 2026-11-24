@@ -42,6 +42,8 @@ export type AuditFindingType =
 
 export type Severity = "info" | "warning" | "error";
 
+export type GroundingStatus = "verified" | "partial" | "unverified";
+
 export type JobStatus =
   | "queued"
   | "extracting_text"
@@ -87,6 +89,9 @@ export interface Claim {
   section_name: string | null;
   quote_snippet: string | null;
   confidence_score: number;
+  grounding_status?: GroundingStatus;
+  grounding_score?: number | null;
+  grounding_note?: string | null;
   created_at: string;
 }
 
@@ -129,6 +134,9 @@ export interface Relationship {
   page_number: number;
   quote_snippet: string | null;
   confidence_score: number;
+  grounding_status?: GroundingStatus;
+  grounding_score?: number | null;
+  grounding_note?: string | null;
   created_at: string;
 }
 
@@ -147,7 +155,11 @@ export interface Scale {
   language: string | null;
   sample_size_override: number | null;
   adaptation_notes: string | null;
+  quote_snippet?: string | null;
   page_number: number;
+  grounding_status?: GroundingStatus;
+  grounding_score?: number | null;
+  grounding_note?: string | null;
   created_at: string;
 }
 
@@ -272,6 +284,9 @@ export interface ContradictionPaperSide {
   p_value: string | null;
   page_number: number;
   quote_snippet: string | null;
+  grounding_status?: GroundingStatus;
+  grounding_score?: number | null;
+  grounding_note?: string | null;
 }
 
 export interface ContradictionCluster {
@@ -311,7 +326,11 @@ export interface ScaleMatrixRow {
   sample_population: string | null;
   statistical_methods: string[];
   research_design: string | null;
+  quote_snippet?: string | null;
   page_number: number;
+  grounding_status?: GroundingStatus;
+  grounding_score?: number | null;
+  grounding_note?: string | null;
 }
 
 export interface ScaleMatrixFilter {
@@ -323,6 +342,7 @@ export interface ScaleMatrixFilter {
   statistical_method?: string | null;
   year_from?: number | null;
   year_to?: number | null;
+  grounding_status?: GroundingStatus | null;
   sort_by?: string;
   sort_dir?: "asc" | "desc";
   limit?: number;
@@ -462,4 +482,25 @@ export interface BackendDiagnostics {
   data_dir: string;
   logs: string[];
   pid: number | null;
+}
+
+export interface PdfHighlightBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface PdfPageRenderResponse {
+  paper_id: string;
+  paper_title: string;
+  page_number: number;
+  page_count: number;
+  width: number;
+  height: number;
+  image_data_url: string;
+  page_text: string;
+  quote_query: string | null;
+  match_found: boolean;
+  highlights: PdfHighlightBox[];
 }

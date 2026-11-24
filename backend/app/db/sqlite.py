@@ -23,6 +23,7 @@ from app.models.schemas import (
     GraphEdge,
     GraphNode,
     GraphResponse,
+    GroundingStatus,
     IngestionJob,
     IngestionStatus,
     JobStatus,
@@ -81,6 +82,37 @@ class SQLiteDatabase:
         ddl = self._schema_path.read_text(encoding="utf-8")
         with self.connect() as conn:
             conn.executescript(ddl)
+            self._ensure_grounding_columns(conn)
+
+    @staticmethod
+    def _ensure_grounding_columns(conn: sqlite3.Connection) -> None:
+        """Idempotently migrate existing SQLite databases to include Phase 6 grounding columns."""
+        migrations: dict[str, list[tuple[str, str]]] = {
+            "claims": [
+                ("grounding_status", "TEXT NOT NULL DEFAULT 'unverified'"),
+                ("grounding_score", "REAL NOT NULL DEFAULT 0.0"),
+                ("grounding_note", "TEXT"),
+            ],
+            "relationships": [
+                ("grounding_status", "TEXT NOT NULL DEFAULT 'unverified'"),
+                ("grounding_score", "REAL NOT NULL DEFAULT 0.0"),
+                ("grounding_note", "TEXT"),
+            ],
+            "scales": [
+                ("quote_snippet", "TEXT"),
+                ("grounding_status", "TEXT NOT NULL DEFAULT 'unverified'"),
+                ("grounding_score", "REAL NOT NULL DEFAULT 0.0"),
+                ("grounding_note", "TEXT"),
+            ],
+        }
+        for table, cols in migrations.items():
+            existing = {
+                str(r["name"])
+                for r in conn.execute(f"PRAGMA table_info({table})").fetchall()
+            }
+            for col_name, col_def in cols:
+                if col_name not in existing:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {col_name} {col_def}")
 
     def health_check(self) -> bool:
         try:
@@ -139,6 +171,8 @@ class ResearchRepository:
 
     @staticmethod
     def _row_to_claim(row: sqlite3.Row) -> Claim:
+        keys = set(row.keys())
+        raw_status = row["grounding_status"] if "grounding_status" in keys else "unverified"
         return Claim(
             id=row["id"],
             paper_id=row["paper_id"],
@@ -147,6 +181,9 @@ class ResearchRepository:
             page_number=row["page_number"],
             section_name=row["section_name"],
             quote_snippet=row["quote_snippet"],
+            grounding_status=GroundingStatus(raw_status or "unverified"),
+            grounding_score=float(row["grounding_score"]) if "grounding_score" in keys and row["grounding_score"] is not None else 0.0,
+            grounding_note=row["grounding_note"] if "grounding_note" in keys else None,
             confidence_score=row["confidence_score"],
             created_at=row["created_at"],
         )
@@ -178,6 +215,8 @@ class ResearchRepository:
 
     @staticmethod
     def _row_to_relationship(row: sqlite3.Row) -> Relationship:
+        keys = set(row.keys())
+        raw_status = row["grounding_status"] if "grounding_status" in keys else "unverified"
         return Relationship(
             id=row["id"],
             paper_id=row["paper_id"],
@@ -195,12 +234,17 @@ class ResearchRepository:
             sample_subgroup=row["sample_subgroup"],
             page_number=row["page_number"],
             quote_snippet=row["quote_snippet"],
+            grounding_status=GroundingStatus(raw_status or "unverified"),
+            grounding_score=float(row["grounding_score"]) if "grounding_score" in keys and row["grounding_score"] is not None else 0.0,
+            grounding_note=row["grounding_note"] if "grounding_note" in keys else None,
             confidence_score=row["confidence_score"],
             created_at=row["created_at"],
         )
 
     @staticmethod
     def _row_to_scale(row: sqlite3.Row) -> Scale:
+        keys = set(row.keys())
+        raw_status = row["grounding_status"] if "grounding_status" in keys else "unverified"
         return Scale(
             id=row["id"],
             paper_id=row["paper_id"],
@@ -217,6 +261,10 @@ class ResearchRepository:
             sample_size_override=row["sample_size_override"],
             adaptation_notes=row["adaptation_notes"],
             page_number=row["page_number"],
+            quote_snippet=row["quote_snippet"] if "quote_snippet" in keys else None,
+            grounding_status=GroundingStatus(raw_status or "unverified"),
+            grounding_score=float(row["grounding_score"]) if "grounding_score" in keys and row["grounding_score"] is not None else 0.0,
+            grounding_note=row["grounding_note"] if "grounding_note" in keys else None,
             created_at=row["created_at"],
         )
 
@@ -496,6 +544,7 @@ class ResearchRepository:
         *,
         paper_id: str,
         payload: PaperExtractionPayload,
+        grounding: Any | None = None,
         status: IngestionStatus = IngestionStatus.PROCESSING,
     ) -> Paper:
         """Atomically persist a validated PaperExtractionPayload into SQLite and FTS5."""
@@ -586,19 +635,25 @@ class ResearchRepository:
                 var_cache[key] = vid
                 return vid
 
-            for rel in payload.relationships:
+            for idx, rel in enumerate(payload.relationships):
                 src_id = resolve_var(rel.source_variable)
                 tgt_id = resolve_var(rel.target_variable)
                 med_id = resolve_var(rel.mediator_variable) if rel.mediator_variable else None
                 mod_id = resolve_var(rel.moderator_variable) if rel.moderator_variable else None
+                verdict = grounding.relationships[idx] if grounding and idx < len(grounding.relationships) else None
+                g_status = verdict.status.value if verdict else GroundingStatus.UNVERIFIED.value
+                g_score = verdict.score if verdict else 0.0
+                g_note = verdict.note if verdict else None
                 conn.execute(
                     """
                     INSERT INTO relationships (
                         id, paper_id, source_variable_id, target_variable_id,
                         source_role, target_role, direction, effect_size, effect_metric,
                         p_value, statistical_method, mediator_variable_id, moderator_variable_id,
-                        sample_subgroup, page_number, quote_snippet, confidence_score, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        sample_subgroup, page_number, quote_snippet,
+                        grounding_status, grounding_score, grounding_note,
+                        confidence_score, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         str(uuid.uuid4()),
@@ -617,21 +672,29 @@ class ResearchRepository:
                         rel.sample_subgroup,
                         rel.page_number,
                         rel.quote_snippet,
+                        g_status,
+                        g_score,
+                        g_note,
                         rel.confidence_score,
                         now,
                     ),
                 )
 
-            for scale in payload.scales:
+            for idx, scale in enumerate(payload.scales):
                 var_id = resolve_var(scale.variable_name) if scale.variable_name else None
+                verdict = grounding.scales[idx] if grounding and idx < len(grounding.scales) else None
+                g_status = verdict.status.value if verdict else GroundingStatus.UNVERIFIED.value
+                g_score = verdict.score if verdict else 0.0
+                g_note = verdict.note if verdict else None
                 conn.execute(
                     """
                     INSERT INTO scales (
                         id, paper_id, variable_id, name, original_authors, original_year,
                         item_count, cronbach_alpha, composite_reliability, ave,
                         response_format, language, sample_size_override, adaptation_notes,
-                        page_number, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        page_number, quote_snippet, grounding_status, grounding_score, grounding_note,
+                        created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         str(uuid.uuid4()),
@@ -649,18 +712,28 @@ class ResearchRepository:
                         scale.sample_size_override,
                         scale.adaptation_notes,
                         scale.page_number,
+                        scale.quote_snippet,
+                        g_status,
+                        g_score,
+                        g_note,
                         now,
                     ),
                 )
 
-            for claim in payload.claims:
+            for idx, claim in enumerate(payload.claims):
                 claim_id = str(uuid.uuid4())
+                verdict = grounding.claims[idx] if grounding and idx < len(grounding.claims) else None
+                g_status = verdict.status.value if verdict else GroundingStatus.UNVERIFIED.value
+                g_score = verdict.score if verdict else 0.0
+                g_note = verdict.note if verdict else None
                 conn.execute(
                     """
                     INSERT INTO claims (
                         id, paper_id, claim_text, claim_type, page_number,
-                        section_name, quote_snippet, confidence_score, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        section_name, quote_snippet,
+                        grounding_status, grounding_score, grounding_note,
+                        confidence_score, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         claim_id,
@@ -670,6 +743,9 @@ class ResearchRepository:
                         claim.page_number,
                         claim.section_name,
                         claim.quote_snippet,
+                        g_status,
+                        g_score,
+                        g_note,
                         claim.confidence_score,
                         now,
                     ),
@@ -877,6 +953,9 @@ class ResearchRepository:
         if filters.year_to is not None:
             where.append("p.year IS NOT NULL AND p.year <= ?")
             params.append(filters.year_to)
+        if filters.grounding_status is not None:
+            where.append("s.grounding_status = ?")
+            params.append(filters.grounding_status.value)
 
         where_sql = ("WHERE " + " AND ".join(where)) if where else ""
         sort_col = self._MATRIX_SORT_COLUMNS.get(filters.sort_by, "p.year")
@@ -912,7 +991,11 @@ class ResearchRepository:
                     p.sample_population,
                     p.statistical_methods_json,
                     p.research_design,
-                    s.page_number
+                    s.page_number,
+                    s.quote_snippet,
+                    s.grounding_status,
+                    s.grounding_score,
+                    s.grounding_note
                 {base_from}
                 {where_sql}
                 ORDER BY ({sort_col} IS NULL) ASC, {sort_col} {sort_dir}, s.name ASC
@@ -943,6 +1026,10 @@ class ResearchRepository:
                 statistical_methods=json.loads(r["statistical_methods_json"] or "[]"),
                 research_design=r["research_design"],
                 page_number=r["page_number"],
+                quote_snippet=r["quote_snippet"],
+                grounding_status=GroundingStatus(r["grounding_status"] or "unverified"),
+                grounding_score=float(r["grounding_score"] if r["grounding_score"] is not None else 0.0),
+                grounding_note=r["grounding_note"],
             )
             for r in rows
         ]

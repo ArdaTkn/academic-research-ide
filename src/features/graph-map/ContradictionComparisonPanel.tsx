@@ -1,4 +1,5 @@
 import { ArrowRight, BookOpen, GitCompareArrows, Scale } from "lucide-react";
+import { GroundingBadge } from "@/components/GroundingBadge";
 import { useI18n, type TranslationKey } from "@/i18n";
 import { useWorkspaceStore } from "@/stores/useWorkspaceStore";
 import type { ContradictionCluster, ContradictionPaperSide, RelationshipDirection } from "@/types/contracts";
@@ -44,6 +45,7 @@ function groupByDirection(sides: ContradictionPaperSide[]): Array<[RelationshipD
 export function ContradictionComparisonPanel({ cluster }: { cluster: ContradictionCluster }) {
   const { t, formatNumber } = useI18n();
   const focusPaperDetail = useWorkspaceStore((s) => s.focusPaperDetail);
+  const openPdfAtPage = useWorkspaceStore((s) => s.openPdfAtPage);
 
   const grouped = groupByDirection(cluster.opposing_sides);
   const sampleSizes = cluster.opposing_sides
@@ -121,11 +123,31 @@ export function ContradictionComparisonPanel({ cluster }: { cluster: Contradicti
                     <span className="line-clamp-2 leading-snug">{side.paper_title}</span>
                   </button>
 
-                  <div className="mt-1 text-[11px] text-slate-500">
-                    {side.authors[0] ?? t("contradiction.noAuthor")} · {side.year ?? t("common.dash")} ·{" "}
-                    <span className="font-medium text-slate-700 tabular-nums">
-                      {t("common.pageShort", { page: side.page_number })}
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
+                    <span>
+                      {side.authors[0] ?? t("contradiction.noAuthor")} · {side.year ?? t("common.dash")} ·
                     </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openPdfAtPage(
+                          side.paper_id,
+                          side.page_number,
+                          side.quote_snippet,
+                          side.paper_title,
+                        )
+                      }
+                      title={t("pdfReader.openAtPage", { page: side.page_number })}
+                      className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-medium text-indigo-700 tabular-nums hover:border-indigo-300 hover:bg-indigo-50"
+                    >
+                      {t("common.pageShort", { page: side.page_number })}
+                    </button>
+                    <GroundingBadge
+                      compact
+                      status={side.grounding_status}
+                      score={side.grounding_score}
+                      note={side.grounding_note}
+                    />
                   </div>
 
                   <div className="mt-2 grid grid-cols-2 gap-1.5 text-[11px] tabular-nums">

@@ -37,6 +37,10 @@ CREATE TABLE IF NOT EXISTS claims (
     page_number INTEGER NOT NULL CHECK (page_number >= 1),
     section_name TEXT,
     quote_snippet TEXT,
+    grounding_status TEXT NOT NULL DEFAULT 'unverified'
+        CHECK (grounding_status IN ('verified', 'partial', 'unverified')),
+    grounding_score REAL NOT NULL DEFAULT 0.0 CHECK (grounding_score >= 0.0 AND grounding_score <= 1.0),
+    grounding_note TEXT,
     confidence_score REAL NOT NULL DEFAULT 0.8 CHECK (confidence_score >= 0.0 AND confidence_score <= 1.0),
     created_at TEXT NOT NULL
 );
@@ -87,6 +91,10 @@ CREATE TABLE IF NOT EXISTS relationships (
     sample_subgroup TEXT,
     page_number INTEGER NOT NULL CHECK (page_number >= 1),
     quote_snippet TEXT,
+    grounding_status TEXT NOT NULL DEFAULT 'unverified'
+        CHECK (grounding_status IN ('verified', 'partial', 'unverified')),
+    grounding_score REAL NOT NULL DEFAULT 0.0 CHECK (grounding_score >= 0.0 AND grounding_score <= 1.0),
+    grounding_note TEXT,
     confidence_score REAL NOT NULL DEFAULT 0.8 CHECK (confidence_score >= 0.0 AND confidence_score <= 1.0),
     created_at TEXT NOT NULL
 );
@@ -108,6 +116,11 @@ CREATE TABLE IF NOT EXISTS scales (
     sample_size_override INTEGER CHECK (sample_size_override IS NULL OR sample_size_override >= 0),
     adaptation_notes TEXT,
     page_number INTEGER NOT NULL CHECK (page_number >= 1),
+    quote_snippet TEXT,
+    grounding_status TEXT NOT NULL DEFAULT 'unverified'
+        CHECK (grounding_status IN ('verified', 'partial', 'unverified')),
+    grounding_score REAL NOT NULL DEFAULT 0.0 CHECK (grounding_score >= 0.0 AND grounding_score <= 1.0),
+    grounding_note TEXT,
     created_at TEXT NOT NULL
 );
 

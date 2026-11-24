@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { BookOpen, Loader2, X } from "lucide-react";
 import { apiClient, ApiClientError } from "@/api/client";
+import { GroundingBadge } from "@/components/GroundingBadge";
 import { useI18n, type TranslationKey } from "@/i18n";
 import { useWorkspaceStore } from "@/stores/useWorkspaceStore";
 import type { VariableRole } from "@/types/contracts";
@@ -19,6 +20,7 @@ export function PaperDetailDrawer() {
   const selectedPaperId = useWorkspaceStore((s) => s.selectedPaperId);
   const selectedScaleId = useWorkspaceStore((s) => s.selectedScaleId);
   const focusPaperDetail = useWorkspaceStore((s) => s.focusPaperDetail);
+  const openPdfAtPage = useWorkspaceStore((s) => s.openPdfAtPage);
 
   const detailQuery = useQuery({
     queryKey: ["paper-detail", selectedPaperId],
@@ -106,9 +108,30 @@ export function PaperDetailDrawer() {
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="font-semibold text-slate-900">{scale.name}</div>
-                          <span className="shrink-0 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-slate-600 tabular-nums">
-                            {t("common.pageShort", { page: scale.page_number })}
-                          </span>
+                          <div className="flex shrink-0 items-center gap-1.5">
+                            <GroundingBadge
+                              compact
+                              status={scale.grounding_status}
+                              score={scale.grounding_score}
+                              note={scale.grounding_note}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                openPdfAtPage(
+                                  data.paper.id,
+                                  scale.page_number,
+                                  scale.quote_snippet ?? scale.name,
+                                  data.paper.title,
+                                );
+                                focusPaperDetail(null);
+                              }}
+                              title={t("pdfReader.openAtPage", { page: scale.page_number })}
+                              className="shrink-0 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-indigo-700 tabular-nums hover:border-indigo-300 hover:bg-indigo-50"
+                            >
+                              {t("common.pageShort", { page: scale.page_number })}
+                            </button>
+                          </div>
                         </div>
                         <div className="mt-1 text-[11px] text-slate-600">
                           {t("paperDrawer.scaleSource")} {scale.original_authors ?? t("common.dash")}
@@ -177,9 +200,32 @@ export function PaperDetailDrawer() {
               <div className="space-y-2">
                 {data.claims.map((claim) => (
                   <div key={claim.id} className="rounded-lg border border-slate-200 p-2.5 text-xs">
-                    <div className="flex items-center justify-between text-[11px] text-slate-500">
-                      <span className="font-medium uppercase">{claim.claim_type}</span>
-                      <span className="tabular-nums">{t("common.pageShort", { page: claim.page_number })}</span>
+                    <div className="flex items-center justify-between gap-2 text-[11px] text-slate-500">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium uppercase">{claim.claim_type}</span>
+                        <GroundingBadge
+                          compact
+                          status={claim.grounding_status}
+                          score={claim.grounding_score}
+                          note={claim.grounding_note}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          openPdfAtPage(
+                            data.paper.id,
+                            claim.page_number,
+                            claim.quote_snippet ?? claim.claim_text,
+                            data.paper.title,
+                          );
+                          focusPaperDetail(null);
+                        }}
+                        title={t("pdfReader.openAtPage", { page: claim.page_number })}
+                        className="rounded border border-slate-200 bg-white px-1.5 py-0.5 font-medium text-indigo-700 tabular-nums hover:border-indigo-300 hover:bg-indigo-50"
+                      >
+                        {t("common.pageShort", { page: claim.page_number })}
+                      </button>
                     </div>
                     <p className="mt-1 text-slate-800">{claim.claim_text}</p>
                     {claim.quote_snippet && (
