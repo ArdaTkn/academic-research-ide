@@ -1,0 +1,18 @@
+[package]
+name = "academic-research-ide"
+version = "0.1.0"
+description = "Cross-platform Academic Research IDE powered by Tauri v2, React, and local FastAPI"
+authors = ["Academic Research IDE Contributors"]
+edition = "2021"
+
+[lib]
+name = "academic_research_ide_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
