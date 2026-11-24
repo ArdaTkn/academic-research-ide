@@ -304,7 +304,7 @@ export const en = {
   "startup.stage.sidecar": "Starting local backend sidecar",
   "startup.stage.storage": "Initializing SQLite (WAL/FTS5) & LanceDB",
   "startup.stage.health": "Verifying /api/v1/health endpoint",
-  "startup.waiting": "Preparing local workspace (typically 2–6 seconds on first launch)...",
+  "startup.waiting": "Preparing local workspace (typically 5–15 seconds on cold launch)...",
   "startup.errorTitle": "Local Backend Failed to Become Ready",
   "startup.errorTimeout": "Timed out waiting for the local backend health check.",
   "startup.modeLabel": "Execution Mode:",

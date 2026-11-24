@@ -53,13 +53,24 @@ impl BackendState {
                 match child.try_wait() {
                     Ok(Some(exit_status)) => {
                         if status == "starting" || status == "running" {
+                            let msg = format!(
+                                "Backend process exited unexpectedly with status: {exit_status}"
+                            );
                             status = "failed".into();
                             if last_error.is_none() {
-                                last_error = Some(format!(
-                                    "Backend process exited unexpectedly with status: {exit_status}"
-                                ));
+                                last_error = Some(msg.clone());
                             }
+                            if let Ok(mut st) = self.status.lock() {
+                                *st = "failed".into();
+                            }
+                            if let Ok(mut le) = self.last_error.lock() {
+                                if le.is_none() {
+                                    *le = Some(msg.clone());
+                                }
+                            }
+                            push_log(&self.logs, format!("[host] ERROR: {msg}"));
                         }
+                        *guard = None;
                     }
                     Ok(None) => {
                         pid = Some(child.id());
@@ -68,8 +79,15 @@ impl BackendState {
                         }
                     }
                     Err(err) => {
+                        let msg = format!("Failed to query backend process state: {err}");
                         status = "failed".into();
-                        last_error = Some(format!("Failed to query backend process state: {err}"));
+                        last_error = Some(msg.clone());
+                        if let Ok(mut st) = self.status.lock() {
+                            *st = "failed".into();
+                        }
+                        if let Ok(mut le) = self.last_error.lock() {
+                            *le = Some(msg);
+                        }
                     }
                 }
             }

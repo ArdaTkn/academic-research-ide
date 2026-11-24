@@ -17,7 +17,7 @@ _BASE_DIR = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 if str(_BASE_DIR) not in sys.path:
     sys.path.insert(0, str(_BASE_DIR))
 
-import fitz  # noqa: E402, F401
+import pymupdf  # noqa: E402, F401
 import lancedb  # noqa: E402, F401
 import pdfplumber  # noqa: E402, F401
 import pyarrow  # noqa: E402, F401

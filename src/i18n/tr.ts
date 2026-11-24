@@ -306,7 +306,7 @@ export const tr: Record<TranslationKey, string> = {
   "startup.stage.sidecar": "Yerel arka uç (sidecar) başlatılıyor",
   "startup.stage.storage": "SQLite (WAL/FTS5) & LanceDB hazırlanıyor",
   "startup.stage.health": "/api/v1/health ucu doğrulanıyor",
-  "startup.waiting": "Yerel çalışma alanı hazırlanıyor (ilk açılışta genellikle 2–6 saniye sürer)...",
+  "startup.waiting": "Yerel çalışma alanı hazırlanıyor (ilk açılışta genellikle 5–15 saniye sürer)...",
   "startup.errorTitle": "Yerel Arka Uç Hazır Duruma Geçemedi",
   "startup.errorTimeout": "Yerel arka uç sağlık kontrolü beklenirken zaman aşımı oluştu.",
   "startup.modeLabel": "Çalışma Modu:",

@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { en, type TranslationKey } from "@/i18n/en";
 import { tr } from "@/i18n/tr";
 import { useWorkspaceStore } from "@/stores/useWorkspaceStore";
@@ -49,13 +50,26 @@ export function useI18n() {
   const locale = useWorkspaceStore((s) => s.locale);
   const setLocale = useWorkspaceStore((s) => s.setLocale);
 
+  const t = useCallback(
+    (key: TranslationKey, params?: Record<string, string | number>) => translate(locale, key, params),
+    [locale]
+  );
+
+  const formatNumber = useCallback(
+    (value: number, options?: Intl.NumberFormatOptions) => formatLocalizedNumber(locale, value, options),
+    [locale]
+  );
+
+  const formatDate = useCallback(
+    (isoString: string) => formatLocalizedDate(locale, isoString),
+    [locale]
+  );
+
   return {
     locale,
     setLocale,
-    t: (key: TranslationKey, params?: Record<string, string | number>) =>
-      translate(locale, key, params),
-    formatNumber: (value: number, options?: Intl.NumberFormatOptions) =>
-      formatLocalizedNumber(locale, value, options),
-    formatDate: (isoString: string) => formatLocalizedDate(locale, isoString),
+    t,
+    formatNumber,
+    formatDate,
   };
 }

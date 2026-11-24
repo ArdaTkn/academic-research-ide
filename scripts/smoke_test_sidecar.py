@@ -15,7 +15,7 @@ from urllib.error import URLError
 from urllib.request import Request, urlopen
 import json
 
-import fitz  # Verified against backend/.venv for generating sample PDF bytes
+import pymupdf  # Verified against backend/.venv for generating sample PDF bytes
 
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -65,7 +65,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="ide-sidecar-smoke-") as tmp_dir:
         tmp_path = Path(tmp_dir)
         sample_pdf = tmp_path / "sample.pdf"
-        doc = fitz.open()
+        doc = pymupdf.open()
         page = doc.new_page()
         page.insert_text((72, 72), "Page 1: Remote autonomy increases employee engagement (beta = 0.42, p < 0.01).")
         doc.save(sample_pdf)

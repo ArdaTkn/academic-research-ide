@@ -13,21 +13,34 @@ interface StartupReadinessGateProps {
 export function StartupReadinessGate({
   children,
   pollIntervalMs = 400,
-  timeoutMs = 25_000,
+  timeoutMs = 45_000,
 }: StartupReadinessGateProps) {
   const { t, locale, setLocale } = useI18n();
   const [phase, setPhase] = useState<"checking" | "ready" | "error">("checking");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorKind, setErrorKind] = useState<"timeout" | "custom" | null>(null);
+  const [customErrorMessage, setCustomErrorMessage] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<BackendDiagnostics | null>(null);
   const [showLogs, setShowLogs] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const startedAtRef = useRef<number>(Date.now());
+  const lastDiagKeyRef = useRef<string>("");
+
+  const syncDiagnostics = useCallback((diag: BackendDiagnostics | null) => {
+    if (!diag) return;
+    const key = `${diag.status}|${diag.pid ?? ""}|${diag.base_url}|${diag.last_error ?? ""}|${diag.logs.length}`;
+    if (key !== lastDiagKeyRef.current) {
+      lastDiagKeyRef.current = key;
+      setDiagnostics(diag);
+    }
+  }, []);
 
   const runReadinessLoop = useCallback(() => {
     startedAtRef.current = Date.now();
+    lastDiagKeyRef.current = "";
     setPhase("checking");
-    setErrorMessage(null);
+    setErrorKind(null);
+    setCustomErrorMessage(null);
     setAttempt((a) => a + 1);
   }, []);
 
@@ -35,17 +48,29 @@ export function StartupReadinessGate({
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
+    const failImmediate = (message: string | null) => {
+      if (cancelled) return;
+      if (message) {
+        setErrorKind("custom");
+        setCustomErrorMessage(message);
+      } else {
+        setErrorKind("timeout");
+        setCustomErrorMessage(null);
+      }
+      setShowLogs(true);
+      setPhase("error");
+    };
+
     const probeOnce = async () => {
       if (cancelled) return;
 
       const diag = await getBackendDiagnostics();
-      if (!cancelled && diag) {
-        setDiagnostics(diag);
-        if (diag.status === "failed") {
-          setErrorMessage(diag.last_error ?? t("startup.errorTimeout"));
-          setPhase("error");
-          return;
-        }
+      if (cancelled) return;
+      syncDiagnostics(diag);
+
+      if (diag && diag.status === "failed") {
+        failImmediate(diag.last_error ?? null);
+        return;
       }
 
       try {
@@ -57,25 +82,28 @@ export function StartupReadinessGate({
         }
       } catch (err) {
         if (cancelled) return;
+        const freshDiag = await getBackendDiagnostics();
+        if (cancelled) return;
+        syncDiagnostics(freshDiag);
+
+        if (freshDiag && freshDiag.status === "failed") {
+          failImmediate(freshDiag.last_error ?? null);
+          return;
+        }
+
         const elapsed = Date.now() - startedAtRef.current;
         if (elapsed >= timeoutMs) {
-          const freshDiag = await getBackendDiagnostics();
-          if (!cancelled && freshDiag) {
-            setDiagnostics(freshDiag);
-          }
-          setErrorMessage(
+          const msg =
             freshDiag?.last_error ??
-              (err instanceof Error && err.message ? err.message : t("startup.errorTimeout"))
-          );
-          setPhase("error");
+            (err instanceof Error && err.message ? err.message : null);
+          failImmediate(msg);
           return;
         }
       }
 
       const elapsed = Date.now() - startedAtRef.current;
       if (elapsed >= timeoutMs) {
-        setErrorMessage(t("startup.errorTimeout"));
-        setPhase("error");
+        failImmediate(null);
         return;
       }
 
@@ -90,14 +118,14 @@ export function StartupReadinessGate({
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [attempt, pollIntervalMs, timeoutMs, t]);
+  }, [attempt, pollIntervalMs, timeoutMs, syncDiagnostics]);
 
   const handleRetry = async () => {
     setIsRestarting(true);
     try {
       const fresh = await restartBackend();
       if (fresh) {
-        setDiagnostics(fresh);
+        syncDiagnostics(fresh);
       }
     } finally {
       setIsRestarting(false);
@@ -110,6 +138,11 @@ export function StartupReadinessGate({
   }
 
   const sidecarSpawned = diagnostics === null || diagnostics.pid !== null || diagnostics.mode === "external";
+  const storageBooted =
+    diagnostics !== null &&
+    diagnostics.logs.some((line) => line.includes("Application startup complete"));
+  const displayedError =
+    errorKind === "custom" && customErrorMessage ? customErrorMessage : t("startup.errorTimeout");
 
   return (
     <div className="flex min-h-screen w-screen flex-col items-center justify-center bg-slate-50 p-6 text-slate-900">
@@ -162,7 +195,11 @@ export function StartupReadinessGate({
                 <span>{t("startup.stage.sidecar")}</span>
               </li>
               <li className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
+                {storageBooted ? (
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                ) : (
+                  <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
+                )}
                 <span>{t("startup.stage.storage")}</span>
               </li>
               <li className="flex items-center gap-2">
@@ -178,7 +215,7 @@ export function StartupReadinessGate({
                 <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600" />
                 <span>{t("startup.errorTitle")}</span>
               </div>
-              {errorMessage && <p className="mt-1.5 text-xs leading-relaxed text-rose-800">{errorMessage}</p>}
+              <p className="mt-1.5 text-xs leading-relaxed text-rose-800">{displayedError}</p>
             </div>
 
             {diagnostics && (
